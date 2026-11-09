@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Metal Warriors — Nitro geométrico</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#090f1a;color:#eaf2ff;font-family:Arial,sans-serif}#view{position:fixed;inset:0}canvas{display:block;width:100%;height:100%}#hud{position:fixed;inset:0;pointer-events:none;background:linear-gradient(180deg,#07101b88,transparent 24%,transparent 72%,#07101b88)}#brand{position:absolute;left:18px;top:14px;font-weight:900;letter-spacing:2px;text-shadow:0 2px 8px #000}#brand small{display:block;font-size:10px;color:#83b8ff;letter-spacing:3px;margin-top:4px}#help{position:absolute;right:16px;top:16px;text-align:right;font-size:12px;color:#d2e2f8;text-shadow:0 2px 6px #000}#controls{position:absolute;left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:9px;pointer-events:auto}button{background:#10233add;border:1px solid #5d9fe8;color:#eaf5ff;border-radius:10px;padding:11px 15px;font-weight:bold;letter-spacing:.5px;box-shadow:0 4px 14px #0008}button:active{background:#24518a}#portrait{display:none;position:fixed;inset:0;background:#07101a;color:white;z-index:5;align-items:center;justify-content:center;text-align:center;padding:30px;font-weight:bold;letter-spacing:1px}
+@media(orientation:portrait){#portrait{display:flex}}@media(max-width:900px){#controls{flex-wrap:wrap;max-width:95%;justify-content:center}button{padding:8px 10px;font-size:11px}}
+</style></head>
+<body><div id="view"></div><div id="hud"><div id="brand">METAL WARRIORS<small>PROTÓTIPO 3D • NITRO</small></div><div id="help">MODELO PROCEDURAL<br>GEOMETRIA ARTICULADA</div><div id="controls"><button id="walk">CAMINHAR</button><button id="run">CORRIDA</button><button id="jump">SALTO</button><button id="jet">PROPULSÃO</button><button id="fire">DISPARAR</button><button id="damage">DANO</button><button id="mode">MODO COMBATE</button><button id="transform">TRANSFORMAÇÃO</button><button id="victory">VITÓRIA</button><button id="fall">QUEDA / DESTRUIÇÃO</button><button id="reset">POSE NEUTRA</button></div></div><div id="portrait">GIRE O CELULAR PARA A PAISAGEM<br><br>METAL WARRIORS</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+(()=>{
+const host=document.getElementById('view');
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x9aa8b5);scene.fog=new THREE.Fog(0x9aa8b5,24,65);
+const camera=new THREE.PerspectiveCamera(34,innerWidth/innerHeight,.1,120);camera.position.set(7.7,5.3,15.8);camera.lookAt(0,3.2,0);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;host.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xddeeff,0x28313b,2.0));const key=new THREE.DirectionalLight(0xffffff,3.0);key.position.set(-5,11,9);key.castShadow=true;key.shadow.mapSize.set(1024,1024);scene.add(key);const rim=new THREE.DirectionalLight(0x438cff,1.6);rim.position.set(7,5,-7);scene.add(rim);
+const mat=(c,metal=.55,rough=.42)=>new THREE.MeshStandardMaterial({color:c,metalness:metal,roughness:rough});
+const blue=mat(0x123f86,.72,.3),blue2=mat(0x2463b5,.68,.32),blueDark=mat(0x091b35,.7,.35),edge=mat(0x8aa5c5,.65,.28),black=mat(0x111820,.75,.32),rubber=mat(0x080c12,.15,.8),silver=mat(0x788998,.8,.28),red=mat(0xb20d16,.55,.28),red2=mat(0xe52a2e,.55,.26),glass= new THREE.MeshStandardMaterial({color:0x111b27,metalness:.7,roughness:.15}),glow=new THREE.MeshStandardMaterial({color:0x28aaff,emissive:0x087dff,emissiveIntensity:2.5});
+const mech=new THREE.Group();scene.add(mech);
+function mesh(g,m,p,par=mech){const o=new THREE.Mesh(g,m);o.position.set(...p);o.castShadow=true;o.receiveShadow=true;par.add(o);return o}
+function box(par,pos,size,m,bevel=false){return mesh(new THREE.BoxGeometry(...size),m,pos,par)}
+function sphere(par,pos,scale,m){const o=mesh(new THREE.SphereGeometry(1,12,10),m,pos,par);o.scale.set(...scale);return o}
+function cyl(par,pos,r1,r2,h,m,axis='y',seg=12){const o=mesh(new THREE.CylinderGeometry(r1,r2,h,seg),m,pos,par);if(axis==='x')o.rotation.z=Math.PI/2;if(axis==='z')o.rotation.x=Math.PI/2;return o}
+function torus(par,pos,r,t,m,axis='x'){const o=mesh(new THREE.TorusGeometry(r,t,8,16),m,pos,par);if(axis==='y')o.rotation.x=Math.PI/2;if(axis==='z')o.rotation.y=Math.PI/2;return o}
+function plate(par,pts,depth,m,pos=[0,0,0]){const s=new THREE.Shape();s.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)s.lineTo(pts[i][0],pts[i][1]);s.closePath();const g=new THREE.ExtrudeGeometry(s,{depth,bevelEnabled:true,bevelSegments:1,steps:1,bevelSize:.035,bevelThickness:.035});const o=mesh(g,m,pos,par);return o}
+// Torso: tapered chest with layered angular triangular armor
+const torso=new THREE.Group();torso.position.y=3.45;mech.add(torso);
+box(torso,[0,0,0],[1.05,1.18,.68],blueDark);
+plate(torso,[[-.92,.48],[-.62,.98],[0,1.12],[.62,.98],[.92,.48],[.56,-.12],[0,-.32],[-.56,-.12]],.72,blue,[0,0,-.36]);
+plate(torso,[[-.83,.52],[-.55,.88],[-.12,.93],[-.38,.22],[-.78,.12]],.12,blue2,[0,0,.39]);plate(torso,[[.83,.52],[.55,.88],[.12,.93],[.38,.22],[.78,.12]],.12,blue2,[0,0,.39]);
+box(torso,[0,.55,.43],[.38,.58,.16],black);box(torso,[0,.56,.53],[.23,.43,.05],silver);box(torso,[0,.56,.565],[.13,.32,.025],black);
+for(let x of [-.55,.55]){cyl(torso,[x,.32,.48],.07,.07,.035,silver,'z');for(let j=0;j<3;j++)box(torso,[x,.05-j*.11,.42],[.22,.045,.08],black)}
+plate(torso,[[-.48,-.4],[-.28,-.72],[0,-.8],[.28,-.72],[.48,-.4],[0,-.25]],.24,blue2,[0,0,.2]);
+// waist and pelvis
+cyl(mech,[0,2.7,0],.48,.56,.42,black);torus(mech,[0,2.7,.02],.42,.07,silver);const pelvis=new THREE.Group();pelvis.position.y=2.38;mech.add(pelvis);plate(pelvis,[[-.66,.3],[-.48,.62],[.48,.62],[.66,.3],[.42,-.18],[0,-.28],[-.42,-.18]],.62,blue);plate(pelvis,[[-.42,.24],[-.25,.46],[0,.5],[.25,.46],[.42,.24],[0,.04]],.08,blue2,[0,0,.34]);
+// Head: recognizable compact red muscle car shell
+const head=new THREE.Group();head.position.set(0,4.73,.02);mech.add(head);
+// Neck mount: a visible mechanical socket that physically connects the car-head to the torso
+cyl(mech,[0,4.66,-.015],.27,.31,.34,black,'y',12);
+cyl(mech,[0,4.77,.015],.30,.30,.10,silver,'y',12);
+torus(mech,[0,4.79,.02],.285,.055,blue2,'y');
+cyl(mech,[0,4.88,-.015],.19,.23,.16,blueDark,'y',10);
+for(const side of [-1,1]){cyl(mech,[side*.22,4.66,.015],.075,.075,.30,silver,'z',10);sphere(mech,[side*.22,4.66,.18],[.07,.07,.07],black);}
+box(head,[0,.12,0],[1.42,.42,.74],red);const hood=box(head,[0,.27,.12],[1.28,.12,.72],red2);hood.rotation.z=-.02;
+const cabin=mesh(new THREE.BoxGeometry(.92,.38,.62),red,[0,.48,-.02],head);cabin.scale.set(1,.9,1);
+// windshield + side windows
+const wind=box(head,[0,.5,.302],[.65,.2,.025],glass);wind.rotation.z=-.12;
+for(let x of [-.48,.48]){box(head,[x,.48,.24],[.22,.19,.025],glass);box(head,[x,.49,-.22],[.22,.18,.025],glass);cyl(head,[x,.25,.36],.045,.045,.035,black,'z');}
+box(head,[0,.34,.39],[.15,.035,.025],black);for(let x of [-.55,.55])sphere(head,[x,.13,.39],[.1,.055,.025],mat(0xf6e6c4,.25,.2));
+// hood racing stripes
+for(let x of [-.17,.17])box(head,[x,.345,.15],[.055,.018,.46],black);
+// Keep the red car clearly smaller than a humanoid head; preserve its neck connection.
+head.scale.setScalar(.72);
+// Shoulders, arms with separate upper/lower groups
+const arms=[];
+for(const side of [-1,1]){
+ const shoulder=new THREE.Group();shoulder.position.set(side*.98,.48,0);torso.add(shoulder);cyl(shoulder,[side*.1,0,0],.36,.36,.34,black,'x');torus(shoulder,[side*.28,0,0],.27,.09,silver,'x');
+ sphere(shoulder,[side*.42,0,0],[.36,.38,.42],blueDark);
+ // angular pauldron: triangular shoulder silhouette
+ plate(shoulder,side<0?[[-.18,.24],[-.62,.43],[-.86,.18],[-.72,-.38],[-.28,-.42]]:[[.18,.24],[.62,.43],[.86,.18],[.72,-.38],[.28,-.42]],.62,blue2,[0,0,-.3]);
+ plate(shoulder,side<0?[[-.25,.15],[-.6,.28],[-.7,.08],[-.55,-.2]]:[[.25,.15],[.6,.28],[.7,.08],[.55,-.2]],.08,edge,[0,0,.34]);
+ const upper=new THREE.Group();upper.position.set(side*.48,-.35,0);shoulder.add(upper);cyl(upper,[0,-.32,0],.19,.22,.62,black);plate(upper,[[-.3,-.08],[-.22,-.58],[0,-.72],[.22,-.58],[.3,-.08],[0,.06]],.38,blue,[0,0,-.2]);
+ const elbow=new THREE.Group();elbow.position.set(0,-.72,0);upper.add(elbow);cyl(elbow,[0,0,0],.2,.2,.32,silver,'x');torus(elbow,[0,0,.02],.18,.05,black);
+ const fore=new THREE.Group();fore.position.set(0,-.18,0);elbow.add(fore);cyl(fore,[0,-.28,0],.19,.16,.52,black);plate(fore,[[-.26,.0],[-.3,-.42],[-.12,-.67],[.16,-.62],[.29,-.3],[.2,.08]],.4,blue2,[0,0,-.22]);plate(fore,[[-.12,-.08],[.1,-.15],[.16,-.43],[-.1,-.5]],.07,edge,[0,0,.22]);
+ const hand=new THREE.Group();hand.position.set(0,-.65,.02);fore.add(hand);sphere(hand,[0,0,0],[.2,.18,.17],black);for(let f=-1;f<=1;f++){const finger=box(hand,[f*.105,-.18,.03],[.075,.25,.09],silver);finger.rotation.z=f*.16;}
+ arms.push({side,shoulder,upper,elbow,fore,hand});
+}
+// Legs: hip joints, triangular thigh/shin armor and feet
+const legs=[];
+for(const side of [-1,1]){
+ const hip=new THREE.Group();hip.position.set(side*.39,2.18,0);mech.add(hip);cyl(hip,[0,0,0],.24,.24,.28,silver,'x');
+ const thigh=new THREE.Group();hip.add(thigh);cyl(thigh,[0,-.42,0],.23,.2,.72,black);plate(thigh,[[-.3,-.08],[-.34,-.52],[-.18,-.86],[.18,-.86],[.34,-.52],[.3,-.08],[0,.12]],.48,blue2,[0,0,-.25]);plate(thigh,[[-.2,-.18],[0,-.32],[.2,-.18],[.12,-.58],[-.12,-.58]],.06,edge,[0,0,.25]);
+ const knee=new THREE.Group();knee.position.set(0,-.82,0);thigh.add(knee);sphere(knee,[0,0,0],[.25,.22,.25],black);torus(knee,[0,0,.04],.2,.055,silver);
+ const shin=new THREE.Group();shin.position.set(0,-.12,0);knee.add(shin);cyl(shin,[0,-.42,0],.18,.2,.68,black);plate(shin,[[-.28,-.02],[-.31,-.52],[-.16,-.82],[.16,-.82],[.31,-.52],[.28,-.02],[0,.12]],.48,blue,[0,0,-.24]);plate(shin,[[-.15,-.12],[0,-.26],[.15,-.12],[.12,-.62],[-.12,-.62]],.06,black,[0,0,.25]);
+ const foot=new THREE.Group();foot.position.set(0,-.83,.15);shin.add(foot);box(foot,[0,-.04,.12],[.58,.22,.88],blueDark);plate(foot,[[-.3,.02],[-.22,.18],[.22,.18],[.3,.02],[.25,-.18],[-.25,-.18]],.62,blue2,[0,0,.35]);box(foot,[0,-.02,.59],[.48,.12,.12],black);legs.push({side,hip,thigh,knee,shin,foot});
+}
+// Back thruster pods, pipes, vents
+const thrusters=[];for(let s of [-1,1]){const pod=new THREE.Group();pod.position.set(s*.55,3.7,-.52);mech.add(pod);thrusters.push(pod);cyl(pod,[0,.12,0],.22,.27,.72,black);cyl(pod,[0,.5,0],.25,.25,.18,blue2);cyl(pod,[0,-.28,0],.17,.22,.22,silver);cyl(pod,[0,-.42,0],.12,.12,.1,glow);box(pod,[s*.16,.15,0],[.12,.65,.28],blue);}
+// Right-side shoulder cannon, clearly distinct from arm silhouette
+const cannon=new THREE.Group();cannon.position.set(-1.12,4.0,.15);mech.add(cannon);cyl(cannon,[0,0,0],.18,.22,.95,black,'x');cyl(cannon,[-.52,0,0],.14,.14,.25,silver,'x');cyl(cannon,[-.7,0,0],.11,.11,.12,glow,'x');box(cannon,[.12,.18,0],[.48,.18,.32],blueDark);for(let i=0;i<3;i++)box(cannon,[.15,.22-i*.07,.18],[.3,.025,.02],silver);
+// Ground, platform, industrial background
+const floor=mesh(new THREE.PlaneGeometry(100,100),mat(0x3d4b57,.2,.85),[0,-.04,0]);floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;
+const platform=mesh(new THREE.BoxGeometry(11,.16,3),mat(0x263442,.65,.48),[0,-.12,0]);platform.receiveShadow=true;
+for(let x=-5;x<=5;x+=1){box(scene,[x,-.025,1.52],[.045,.025,.16],silver)}
+const grid=new THREE.GridHelper(80,50,0x66819a,0x506273);grid.position.y=-.02;scene.add(grid);
+// Low industrial pylons in distance
+for(let i=0;i<8;i++){const x=(i-3.5)*4.5;const h=1.5+(i%3)*.8;const b=mesh(new THREE.BoxGeometry(.55,h,.55),mat(0x455462,.65,.6),[x,h/2-0.05,-5]);box(b,[0,.25,.3],[.16,.22,.05],glow);}
+// Lighting glints and status lights
+for(let s of [-1,1]){sphere(torso,[s*.72,.12,.44],[.07,.07,.035],glow)}
+let walking=false,running=false,firing=false,jetting=false,jumpActive=false,jumpT=0,clock=new THREE.Clock(),walkT=0,shotT=0,recoil=0,hitT=0,combatMode=false,landT=0,wasJumping=false,transformT=0,transforming=false,fallen=false,victory=false;const shots=[];
+const originalCamera=camera.position.clone();
+function triggerHit(){if(fallen)return;hitT=.48;mech.position.x=.12;torso.rotation.z=.16;arms.forEach(a=>a.upper.rotation.z=-.25*a.side);}
+function startTransform(){if(fallen)return;transforming=!transforming;transformT=0;document.getElementById('transform').textContent=transforming?'REVERTER TRANSFORMAÇÃO':'TRANSFORMAÇÃO';}
+function startFall(){fallen=true;victory=false;transforming=false;walking=running=firing=jetting=jumpActive=false;document.getElementById('fall').textContent='LEVANTAR';}
+function standUp(){fallen=false;victory=false;mech.rotation.z=0;mech.rotation.x=0;mech.position.set(0,0,0);torso.rotation.z=0;torso.rotation.x=0;legs.forEach(l=>{l.thigh.rotation.z=0;l.shin.rotation.z=0;});arms.forEach(a=>{a.shoulder.rotation.z=0;a.upper.rotation.z=0;});document.getElementById('fall').textContent='QUEDA / DESTRUIÇÃO';}
+function startVictory(){if(fallen)return;victory=!victory;walking=running=firing=jetting=false;document.getElementById('victory').textContent=victory?'CANCELAR VITÓRIA':'VITÓRIA';}
+function setCombatMode(v){combatMode=v;document.getElementById("mode").textContent=combatMode?"MODO NORMAL":"MODO COMBATE";}
+function spawnShot(){const g=new THREE.Group();mesh(new THREE.SphereGeometry(.12,10,8),glow,[0,0,0],g);mesh(new THREE.SphereGeometry(.2,8,6),new THREE.MeshBasicMaterial({color:0x42baff,transparent:true,opacity:.25}),[0,0,0],g);g.position.set(-1.9,3.9,.45);scene.add(g);shots.push({g,v:new THREE.Vector3(-.22,.015,0),life:1.8});recoil=.16;}
+function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.04);walkT+=dt;shotT+=dt;recoil=Math.max(0,recoil-dt*1.8);
+ const stride=(walking||running)?Math.sin(walkT*(running?11.2:7.4)):Math.sin(walkT*1.6)*.035;
+ legs.forEach(l=>{const a=stride*l.side;l.thigh.rotation.z=(walking||running)?a*(running?.62:.42):a*.035;l.shin.rotation.z=(walking||running)?Math.max(0,-a)*(running?.78:.52):Math.sin(walkT*1.6)*.015;l.foot.rotation.z=(walking||running)?-Math.max(0,a)*(running?.34:.24):0;l.hip.rotation.x=(running?Math.sin(walkT*11.2)*.06:0);});
+ arms.forEach(a=>{a.shoulder.rotation.z=(walking||running)?-Math.sin(walkT*(running?11.2:7.4))*(running?.28:.19)*a.side:Math.sin(walkT*1.5)*.025*a.side;a.upper.rotation.z=(walking||running)?Math.sin(walkT*(running?11.2:7.4))*(running?.32:.23)*a.side:Math.sin(walkT*1.2)*.015*a.side;a.elbow.rotation.z=(walking||running)?Math.max(0,Math.sin(walkT*(running?11.2:7.4)))*-.24*a.side:0;a.fore.rotation.z=(walking||running)?-.08*a.side:0;});
+ let jumpY=0;if(jumpActive){jumpT+=dt;const duration=.95;const u=Math.min(jumpT/duration,1);jumpY=Math.sin(Math.PI*u)*1.25;if(u>=1){jumpActive=false;jumpT=0;}}
+ const bob=(walking||running)?Math.abs(Math.sin(walkT*(running?11.2:7.4)))*(running?.14:.09):Math.sin(walkT*1.5)*.018;
+ mech.position.y=jumpY+(jetting?Math.sin(walkT*18)*.035:0);
+ torso.position.y=3.45+bob+(jumpActive?.08:0)+(jetting?.1:0)+(combatMode?-.18:0);torso.rotation.z=(walking||running)?Math.sin(walkT*(running?11.2:7.4))*(running?.07:.045):(jumpActive?-.08:0);torso.rotation.x=combatMode?-.08:0;
+ head.rotation.z=(walking||running)?Math.sin(walkT*(running?11.2:7.4))*.025:Math.sin(walkT*1.1)*.012;head.rotation.x=combatMode?-.06:0;
+ cannon.position.x=-1.12+recoil*.65;cannon.rotation.z=(walking||running)?Math.sin(walkT*(running?11.2:7.4))*.025:0;cannon.rotation.y=combatMode?-.12:0;
+ thrusters.forEach((t,i)=>{t.rotation.x=jetting?Math.sin(walkT*20+i)*.04:0;t.children.forEach(o=>{if(o.material===glow)o.scale.setScalar(jetting?1.8:1);});});
+ if(firing&&shotT>.28){spawnShot();shotT=0;}
+ for(let i=shots.length-1;i>=0;i--){const sh=shots[i];sh.g.position.addScaledVector(sh.v,dt*13);sh.life-=dt;if(sh.life<=0){scene.remove(sh.g);shots.splice(i,1)}}
+ if(hitT>0){hitT-=dt;mech.position.x=Math.sin(hitT*45)*.12;camera.position.x=originalCamera.x+Math.sin(hitT*50)*hitT*.16;mech.traverse(o=>{if(o.isMesh&&o.material&&o.material.emissive){o.material.emissive.setHex(0x661111);}});if(hitT<=0){mech.position.x=0;camera.position.copy(originalCamera);mech.traverse(o=>{if(o.isMesh&&o.material&&o.material.emissive){o.material.emissive.setHex(0x000000);}});}}
+ if(wasJumping&&!jumpActive){landT=.35;}wasJumping=jumpActive;if(landT>0){landT-=dt;mech.scale.y=1-Math.sin(Math.max(0,landT)/.35*Math.PI)*.07;torso.rotation.x=-.12;}else{mech.scale.y=1;}
+ mech.rotation.y=Math.sin(walkT*.35)*.025;
+ // Procedural transformation: compact crouch and deploy/retract arms and legs.
+ if(transforming){transformT=Math.min(1,transformT+dt*1.25);}else{transformT=Math.max(0,transformT-dt*1.25);}
+ const tr=Math.sin(transformT*Math.PI*.5);pelvis.rotation.z=tr*.08;torso.rotation.z+=(transforming?-.06:0);arms.forEach(a=>{a.shoulder.rotation.z+=(transforming?-.18*a.side:0);a.elbow.rotation.z=(transforming?-.35*a.side*tr:0);});legs.forEach(l=>{l.thigh.rotation.z+=(transforming?.12*l.side:0);l.shin.rotation.z=transforming?-.22*tr:0;});
+ // Victory: raise both arms and lean back slightly.
+ if(victory){arms.forEach(a=>{a.shoulder.rotation.z=-a.side*1.05;a.upper.rotation.z=-a.side*.45;a.elbow.rotation.z=-.35;});torso.rotation.x=-.12;head.rotation.x=-.08;}
+ // Dramatic knockdown/destruction pose with slow settling.
+ if(fallen){mech.rotation.z+=(.9-mech.rotation.z)*Math.min(1,dt*2.8);mech.position.y+=( -.55-mech.position.y)*Math.min(1,dt*2.5);torso.rotation.z=-.35;arms.forEach(a=>{a.shoulder.rotation.z=-a.side*.8;a.upper.rotation.z=-a.side*.5;});legs.forEach(l=>{l.thigh.rotation.z=l.side*.45;l.shin.rotation.z=-.45;});}
+ renderer.render(scene,camera);
+}
+animate();
+document.getElementById('walk').onclick=()=>{walking=!walking;if(walking)running=false;document.getElementById('walk').textContent=walking?'PARAR':'CAMINHAR';document.getElementById('run').textContent=running?'PARAR CORRIDA':'CORRIDA'};
+document.getElementById('run').onclick=()=>{running=!running;if(running)walking=false;document.getElementById('run').textContent=running?'PARAR CORRIDA':'CORRIDA';document.getElementById('walk').textContent=walking?'PARAR':'CAMINHAR'};
+document.getElementById('damage').onclick=triggerHit;document.getElementById('mode').onclick=()=>setCombatMode(!combatMode);document.getElementById('transform').onclick=startTransform;document.getElementById('victory').onclick=startVictory;document.getElementById('fall').onclick=()=>fallen?standUp():startFall();
+document.getElementById('fire').onpointerdown=()=>{firing=true};document.getElementById('fire').onpointerup=()=>{firing=false};document.getElementById('fire').onpointerleave=()=>{firing=false};
+document.getElementById('jump').onclick=()=>{if(!jumpActive){jumpActive=true;jumpT=0}};document.getElementById('jet').onclick=()=>{jetting=!jetting;document.getElementById('jet').textContent=jetting?'DESLIGAR JATO':'PROPULSÃO'};
+document.getElementById('reset').onclick=()=>{standUp();transforming=false;transformT=0;victory=false;document.getElementById('transform').textContent='TRANSFORMAÇÃO';document.getElementById('victory').textContent='VITÓRIA';walking=false;running=false;firing=false;jetting=false;jumpActive=false;jumpT=0;hitT=0;landT=0;setCombatMode(false);mech.position.set(0,0,0);mech.scale.y=1;camera.position.copy(originalCamera);document.getElementById('walk').textContent='CAMINHAR';document.getElementById('run').textContent='CORRIDA';document.getElementById('jet').textContent='PROPULSÃO';legs.forEach(l=>{l.thigh.rotation.z=0;l.shin.rotation.z=0;l.foot.rotation.z=0});arms.forEach(a=>{a.shoulder.rotation.z=0;a.upper.rotation.z=0});};
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));});
+})();
+</script></body></html>
