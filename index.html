@@ -393,11 +393,11 @@ function resetDamageSystem(){
     );
     source = source.replace(
         "renderer.render(scene,camera);",
-        "updateDamageEffects(dt);\\n renderer.render(scene,camera);"
+        "updateDamageEffects(dt);\n renderer.render(scene,camera);"
     );
     source = source.replace(
         "reset: function() {",
-        "damage: function(){triggerHit();},\\n        destroy: function(){damageLevel=1;detachAllArmor();startFall();},\\n        reset: function() {\\n            resetDamageSystem();"
+        "damage: function(){triggerHit();},\n        destroy: function(){damageLevel=1;detachAllArmor();startFall();},\n        reset: function() {\n            resetDamageSystem();"
     );
 
     const gameplay = `
