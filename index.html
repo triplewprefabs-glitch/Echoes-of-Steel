@@ -671,7 +671,7 @@ function destroyMechanicalSystems(){
         },
 
         damage: function() { triggerHit(); },
-        destroy: function() { damageLevel=1; detachAllArmor(); startFall(); },
+        destroy: function() { damageLevel=1; detachAllArmor(); destroyMechanicalSystems(); startFall(); },
         reset: function() {
             resetDamageSystem();
 
