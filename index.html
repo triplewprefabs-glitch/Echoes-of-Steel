@@ -387,7 +387,6 @@ function resetDamageSystem(){
  armorDebris.length=0;impactSparks.length=0;damageEvents=0;damageLevel=0;
 }
     `;
-    source = source.replace("animate();", damageSystem + "\\nanimate();");
     source = source.replace(
         "function triggerHit(){damageLevel=Math.min(1,damageLevel+.28);if(fallen)return;",
         "function triggerHit(){damageLevel=Math.min(1,damageLevel+.28);if(fallen)return;applyArmorDamage();spawnImpactSparks();"
@@ -633,7 +632,7 @@ function resetDamageSystem(){
 
     source = source.replace(
         "animate();",
-        gameplay + "\\nanimate();"
+        damageSystem + "\n" + gameplay + "\nanimate();"
     );
 
     return source;
