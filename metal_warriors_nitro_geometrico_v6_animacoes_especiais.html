@@ -130,7 +130,7 @@ const grid=new THREE.GridHelper(80,50,0x66819a,0x506273);grid.position.y=-.02;sc
 for(let i=0;i<8;i++){const x=(i-3.5)*4.5;const h=1.5+(i%3)*.8;const b=mesh(new THREE.BoxGeometry(.55,h,.55),mat(0x455462,.65,.6),[x,h/2-0.05,-5]);box(b,[0,.25,.3],[.16,.22,.05],glow);}
 // Lighting glints and status lights
 for(let s of [-1,1]){sphere(torso,[s*.72,.12,.44],[.07,.07,.035],glow)}
-let walking=false,running=false,firing=false,jetting=false,jumpActive=false,jumpT=0,clock=let ejecting=false,ejectT=0,damageLevel=0;new THREE.Clock(),walkT=0,shotT=0,recoil=0,hitT=0,combatMode=false,landT=0,wasJumping=false,transformT=0,transforming=false,fallen=false,victory=false;const shots=[];
+let walking=false,running=false,firing=false,jetting=false,jumpActive=false,jumpT=0,ejecting=false,ejectT=0,damageLevel=0,clock=new THREE.Clock(),walkT=0,shotT=0,recoil=0,hitT=0,combatMode=false,landT=0,wasJumping=false,transformT=0,transforming=false,fallen=false,victory=false;const shots=[];
 const originalCamera=camera.position.clone();
 // Câmera orbital de inspeção: arraste para girar, pinça/roda para zoom.
 const orbitTarget=new THREE.Vector3(0,3.05,0);
@@ -191,8 +191,8 @@ function triggerHit(){damageLevel=Math.min(1,damageLevel+.28);if(fallen)return;h
 function startTransform(){if(fallen)return;transforming=!transforming;transformT=0;document.getElementById('transform').textContent=transforming?'REVERTER TRANSFORMAÇÃO':'TRANSFORMAÇÃO';}
 function startFall(){damageLevel=1;fallen=true;victory=false;transforming=false;walking=running=firing=jetting=jumpActive=false;document.getElementById('fall').textContent='LEVANTAR';}
 function standUp(){fallen=false;victory=false;mech.rotation.z=0;mech.rotation.x=0;mech.position.set(0,0,0);torso.rotation.z=0;torso.rotation.x=0;legs.forEach(l=>{l.thigh.rotation.z=0;l.shin.rotation.z=0;});arms.forEach(a=>{a.shoulder.rotation.z=0;a.upper.rotation.z=0;});document.getElementById('fall').textContent='QUEDA / DESTRUIÇÃO';}
-function startVictory(){function startEjection(){if(fallen||ejecting)return;ejecting=true;ejectT=0;walking=running=firing=jetting=jumpActive=false;pilot.visible=true;document.getElementById('eject').textContent='EJEÇÃO EM ANDAMENTO';}
-if(fallen)return;victory=!victory;walking=running=firing=jetting=false;document.getElementById('victory').textContent=victory?'CANCELAR VITÓRIA':'VITÓRIA';}
+function startEjection(){if(fallen||ejecting)return;ejecting=true;ejectT=0;walking=running=firing=jetting=jumpActive=false;pilot.visible=true;document.getElementById('eject').textContent='EJEÇÃO EM ANDAMENTO';}
+function startVictory(){if(fallen)return;victory=!victory;walking=running=firing=jetting=false;document.getElementById('victory').textContent=victory?'CANCELAR VITÓRIA':'VITÓRIA';}
 function setCombatMode(v){combatMode=v;document.getElementById("mode").textContent=combatMode?"MODO NORMAL":"MODO COMBATE";}
 function spawnShot(){const g=new THREE.Group();mesh(new THREE.SphereGeometry(.12,10,8),glow,[0,0,0],g);mesh(new THREE.SphereGeometry(.2,8,6),new THREE.MeshBasicMaterial({color:0x42baff,transparent:true,opacity:.25}),[0,0,0],g);g.position.set(-1.9,3.9,.45);scene.add(g);shots.push({g,v:new THREE.Vector3(-.22,.015,0),life:1.8});recoil=.16;}
 function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.04);walkT+=dt;shotT+=dt;recoil=Math.max(0,recoil-dt*1.8);
@@ -232,7 +232,8 @@ function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDel
  if(firing&&shotT>.28){spawnShot();shotT=0;}
  if(ejecting){ejectT+=dt;const e=THREE.MathUtils.clamp(ejectT/1.35,0,1);pilot.position.y=3.95+e*3.2;pilot.position.z=.72+e*.5;pilot.rotation.z=Math.sin(e*Math.PI)*.18;if(e>=1){ejecting=false;pilot.visible=false;document.getElementById('eject').textContent='EJETAR PILOTO';}}
  const damagePulse=damageLevel>0?Math.sin(walkT*22)*damageLevel*.025:0;
- torso.scale.x=1-damageLevel*.055;torso.scale.y=1-damageLevel*.035;torso.rotation.z+=damagePulse;
+ torso.scale.x=1-damageLevel*.055;torso.scale.y=1-damageLevel*.035;// A vibração visual é aplicada sem acumular rotação de um quadro para o outro.
+torso.rotation.z+=damagePulse*dt*8;
  arms.forEach(a=>{a.shoulder.rotation.x=THREE.MathUtils.damp(a.shoulder.rotation.x,damageLevel*.12*a.side,5,dt);});
  waistBellows.forEach((b,i)=>{b.position.y=2.92-i*.09-(moving?Math.abs(stride)*.018:0);b.scale.x=1-damageLevel*.08;});
  updateMechanisms();
