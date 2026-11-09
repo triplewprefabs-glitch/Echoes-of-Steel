@@ -605,7 +605,10 @@ function resetDamageSystem(){
             jetting = !jetting;
         },
 
+        damage: function() { triggerHit(); },
+        destroy: function() { damageLevel=1; detachAllArmor(); startFall(); },
         reset: function() {
+            resetDamageSystem();
 
             standUp();
 
