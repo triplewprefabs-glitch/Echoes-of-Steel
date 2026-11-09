@@ -8,7 +8,7 @@
 #cameraControls{position:fixed;right:10px;top:64px;z-index:4;display:flex;flex-direction:column;gap:7px;pointer-events:auto}#cameraControls .camrow{display:flex;gap:6px;justify-content:flex-end}#cameraControls button{padding:9px 11px;font-size:11px;background:#071a2ddd;border-color:#70baff}#cameraLabel{font-size:10px;text-align:right;color:#c7e4ff;text-shadow:0 2px 5px #000;margin-bottom:2px;letter-spacing:1px}#view{touch-action:none}
 @media(max-width:900px){#controls{left:8px;right:8px;bottom:max(10px,env(safe-area-inset-bottom));transform:none;max-width:none;flex-wrap:wrap;justify-content:center;gap:5px}#controls button{padding:8px 9px;font-size:10px}#cameraControls{right:7px;top:62px;gap:5px}#cameraControls button{padding:7px 8px;font-size:9px}#cameraLabel{font-size:8px}#help{top:58px;font-size:10px}#brand{font-size:13px}#brand small{font-size:8px}}@media(orientation:portrait) and (max-width:600px){#controls{max-width:calc(100% - 12px);bottom:max(7px,env(safe-area-inset-bottom));gap:4px}#controls button{padding:7px 7px;font-size:9px}#cameraControls{top:88px}#help{display:none}}
 </style></head>
-<body><div id="view"></div><div id="hud"><div id="brand">METAL WARRIORS<small>PROTÓTIPO 3D • NITRO</small></div><div id="help">MODELO PROCEDURAL<br>GEOMETRIA ARTICULADA</div><div id="controls"><button id="walk">CAMINHAR</button><button id="run">CORRIDA</button><button id="jump">SALTO</button><button id="jet">PROPULSÃO</button><button id="fire">DISPARAR</button><button id="damage">DANO</button><button id="mode">MODO COMBATE</button><button id="transform">TRANSFORMAÇÃO</button><button id="victory">VITÓRIA</button><button id="fall">QUEDA / DESTRUIÇÃO</button><button id="reset">POSE NEUTRA</button></div></div><div id="cameraControls"><div id="cameraLabel">CÂMERA LIVRE • ARRASTE PARA GIRAR</div><div class="camrow"><button id="camFront">FRENTE</button><button id="camSide">LADO</button></div><div class="camrow"><button id="camBack">COSTAS</button><button id="camTop">CIMA</button><button id="camHome">CENTRO</button></div></div><div id="portrait">GIRE O CELULAR PARA A PAISAGEM<br><br>METAL WARRIORS</div>
+<body><div id="view"></div><div id="hud"><div id="brand">METAL WARRIORS<small>PROTÓTIPO 3D • NITRO</small></div><div id="help">MODELO PROCEDURAL<br>GEOMETRIA ARTICULADA</div><div id="controls"><button id="walk">CAMINHAR</button><button id="run">CORRIDA</button><button id="jump">SALTO</button><button id="jet">PROPULSÃO</button><button id="fire">DISPARAR</button><button id="damage">DANO</button><button id="mode">MODO COMBATE</button><button id="transform">TRANSFORMAÇÃO</button><button id="victory">VITÓRIA</button><button id="fall">QUEDA / DESTRUIÇÃO</button><button id="eject">EJETAR PILOTO</button><button id="reset">POSE NEUTRA</button></div></div><div id="cameraControls"><div id="cameraLabel">CÂMERA LIVRE • ARRASTE PARA GIRAR</div><div class="camrow"><button id="camFront">FRENTE</button><button id="camSide">LADO</button></div><div class="camrow"><button id="camBack">COSTAS</button><button id="camTop">CIMA</button><button id="camHome">CENTRO</button></div></div><div id="portrait">GIRE O CELULAR PARA A PAISAGEM<br><br>METAL WARRIORS</div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>
 (()=>{
@@ -78,6 +78,46 @@ for(const side of [-1,1]){
  const foot=new THREE.Group();foot.position.set(0,-.83,.15);shin.add(foot);box(foot,[0,-.04,.12],[.58,.22,.88],blueDark);plate(foot,[[-.3,.02],[-.22,.18],[.22,.18],[.3,.02],[.25,-.18],[-.25,-.18]],.62,blue2,[0,0,.35]);box(foot,[0,-.02,.59],[.48,.12,.12],black);legs.push({side,hip,thigh,knee,shin,foot});
 }
 // Back thruster pods, pipes, vents
+// Piloto simplificado para demonstrar a ejeção do compartimento.
+const pilot=new THREE.Group();pilot.visible=false;pilot.position.set(0,3.95,.72);mech.add(pilot);
+sphere(pilot,[0,.12,0],[.12,.15,.11],mat(0x202a38,.25,.65));
+box(pilot,[0,-.08,0],[.18,.28,.12],mat(0xd6dce3,.25,.6));
+for(const s of [-1,1]){const leg=box(pilot,[s*.055,-.28,.01],[.065,.22,.07],black);leg.rotation.z=s*.08;}
+
+// Atuadores telescópicos visíveis: hastes e cilindros acompanham joelhos e cotovelos.
+const mechanisms=[];
+function anchor(parent,pos){const a=new THREE.Object3D();a.position.set(...pos);parent.add(a);return a;}
+function hydraulicRod(a,b,r=.045){
+ const g=new THREE.Group();scene.add(g);
+ const casing=mesh(new THREE.CylinderGeometry(r*1.65,r*1.65,1,10),black,[0,0,0],g);
+ const sleeve=mesh(new THREE.CylinderGeometry(r*1.18,r*1.18,1,10),silver,[0,0,0],g);
+ const shaft=mesh(new THREE.CylinderGeometry(r*.52,r*.52,1,8),edge,[0,0,0],g);
+ mechanisms.push({a,b,g,casing,sleeve,shaft});
+}
+function updateMechanisms(){
+ const axis=new THREE.Vector3(0,1,0),p=new THREE.Vector3(),q=new THREE.Vector3(),mid=new THREE.Vector3();
+ for(const m of mechanisms){
+  m.a.getWorldPosition(p);m.b.getWorldPosition(q);mid.copy(p).add(q).multiplyScalar(.5);
+  const d=Math.max(.08,p.distanceTo(q));m.g.position.copy(mid);m.g.quaternion.setFromUnitVectors(axis,q.clone().sub(p).normalize());
+  m.casing.scale.set(1,d*.72,1);m.sleeve.scale.set(1,d*.48,1);m.shaft.scale.set(1,d*.82,1);
+  m.sleeve.position.y=d*.08;m.shaft.position.y=d*.18;
+ }
+}
+legs.forEach(l=>{
+ const s=l.side;
+ hydraulicRod(anchor(l.thigh,[s*.13,-.48,-.25]),anchor(l.shin,[s*.13,-.28,-.25]),.052);
+ hydraulicRod(anchor(l.thigh,[-s*.13,-.48,-.25]),anchor(l.shin,[-s*.13,-.28,-.25]),.052);
+ plate(l.knee,[[-.24,.13],[-.18,.29],[0,.36],[.18,.29],[.24,.13],[.16,-.12],[0,-.2],[-.16,-.12]],.12,blue2,[0,0,.23]);
+});
+arms.forEach(a=>{
+ const s=a.side;
+ hydraulicRod(anchor(a.upper,[s*.12,-.42,-.23]),anchor(a.fore,[s*.12,-.22,-.23]),.042);
+ hydraulicRod(anchor(a.upper,[-s*.12,-.42,-.23]),anchor(a.fore,[-s*.12,-.22,-.23]),.042);
+ plate(a.elbow,[[-.2,.12],[-.16,.27],[0,.32],[.16,.27],[.2,.12],[.14,-.12],[0,-.17],[-.14,-.12]],.1,blue2,[0,0,.22]);
+});
+const waistBellows=[];
+for(let i=0;i<3;i++){waistBellows.push(box(mech,[0,2.92-i*.09,.38],[.52-i*.045,.055,.13],black));}
+
 const thrusters=[];for(let s of [-1,1]){const pod=new THREE.Group();pod.position.set(s*.55,3.7,-.52);mech.add(pod);thrusters.push(pod);cyl(pod,[0,.12,0],.22,.27,.72,black);cyl(pod,[0,.5,0],.25,.25,.18,blue2);cyl(pod,[0,-.28,0],.17,.22,.22,silver);cyl(pod,[0,-.42,0],.12,.12,.1,glow);box(pod,[s*.16,.15,0],[.12,.65,.28],blue);}
 // Right-side shoulder cannon, clearly distinct from arm silhouette
 const cannon=new THREE.Group();cannon.position.set(-1.12,4.0,.15);mech.add(cannon);cyl(cannon,[0,0,0],.18,.22,.95,black,'x');cyl(cannon,[-.52,0,0],.14,.14,.25,silver,'x');cyl(cannon,[-.7,0,0],.11,.11,.12,glow,'x');box(cannon,[.12,.18,0],[.48,.18,.32],blueDark);for(let i=0;i<3;i++)box(cannon,[.15,.22-i*.07,.18],[.3,.025,.02],silver);
@@ -90,7 +130,7 @@ const grid=new THREE.GridHelper(80,50,0x66819a,0x506273);grid.position.y=-.02;sc
 for(let i=0;i<8;i++){const x=(i-3.5)*4.5;const h=1.5+(i%3)*.8;const b=mesh(new THREE.BoxGeometry(.55,h,.55),mat(0x455462,.65,.6),[x,h/2-0.05,-5]);box(b,[0,.25,.3],[.16,.22,.05],glow);}
 // Lighting glints and status lights
 for(let s of [-1,1]){sphere(torso,[s*.72,.12,.44],[.07,.07,.035],glow)}
-let walking=false,running=false,firing=false,jetting=false,jumpActive=false,jumpT=0,clock=new THREE.Clock(),walkT=0,shotT=0,recoil=0,hitT=0,combatMode=false,landT=0,wasJumping=false,transformT=0,transforming=false,fallen=false,victory=false;const shots=[];
+let walking=false,running=false,firing=false,jetting=false,jumpActive=false,jumpT=0,clock=let ejecting=false,ejectT=0,damageLevel=0;new THREE.Clock(),walkT=0,shotT=0,recoil=0,hitT=0,combatMode=false,landT=0,wasJumping=false,transformT=0,transforming=false,fallen=false,victory=false;const shots=[];
 const originalCamera=camera.position.clone();
 // Câmera orbital de inspeção: arraste para girar, pinça/roda para zoom.
 const orbitTarget=new THREE.Vector3(0,3.05,0);
@@ -147,11 +187,12 @@ document.getElementById("camBack").onclick=()=>cameraPreset("back");
 document.getElementById("camTop").onclick=()=>cameraPreset("top");
 document.getElementById("camHome").onclick=()=>cameraPreset("home");
 frameForScreen();
-function triggerHit(){if(fallen)return;hitT=.48;mech.position.x=.12;torso.rotation.z=.16;arms.forEach(a=>a.upper.rotation.z=-.25*a.side);}
+function triggerHit(){damageLevel=Math.min(1,damageLevel+.28);if(fallen)return;hitT=.48;mech.position.x=.12;torso.rotation.z=.16;arms.forEach(a=>a.upper.rotation.z=-.25*a.side);}
 function startTransform(){if(fallen)return;transforming=!transforming;transformT=0;document.getElementById('transform').textContent=transforming?'REVERTER TRANSFORMAÇÃO':'TRANSFORMAÇÃO';}
-function startFall(){fallen=true;victory=false;transforming=false;walking=running=firing=jetting=jumpActive=false;document.getElementById('fall').textContent='LEVANTAR';}
+function startFall(){damageLevel=1;fallen=true;victory=false;transforming=false;walking=running=firing=jetting=jumpActive=false;document.getElementById('fall').textContent='LEVANTAR';}
 function standUp(){fallen=false;victory=false;mech.rotation.z=0;mech.rotation.x=0;mech.position.set(0,0,0);torso.rotation.z=0;torso.rotation.x=0;legs.forEach(l=>{l.thigh.rotation.z=0;l.shin.rotation.z=0;});arms.forEach(a=>{a.shoulder.rotation.z=0;a.upper.rotation.z=0;});document.getElementById('fall').textContent='QUEDA / DESTRUIÇÃO';}
-function startVictory(){if(fallen)return;victory=!victory;walking=running=firing=jetting=false;document.getElementById('victory').textContent=victory?'CANCELAR VITÓRIA':'VITÓRIA';}
+function startVictory(){function startEjection(){if(fallen||ejecting)return;ejecting=true;ejectT=0;walking=running=firing=jetting=jumpActive=false;pilot.visible=true;document.getElementById('eject').textContent='EJEÇÃO EM ANDAMENTO';}
+if(fallen)return;victory=!victory;walking=running=firing=jetting=false;document.getElementById('victory').textContent=victory?'CANCELAR VITÓRIA':'VITÓRIA';}
 function setCombatMode(v){combatMode=v;document.getElementById("mode").textContent=combatMode?"MODO NORMAL":"MODO COMBATE";}
 function spawnShot(){const g=new THREE.Group();mesh(new THREE.SphereGeometry(.12,10,8),glow,[0,0,0],g);mesh(new THREE.SphereGeometry(.2,8,6),new THREE.MeshBasicMaterial({color:0x42baff,transparent:true,opacity:.25}),[0,0,0],g);g.position.set(-1.9,3.9,.45);scene.add(g);shots.push({g,v:new THREE.Vector3(-.22,.015,0),life:1.8});recoil=.16;}
 function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.04);walkT+=dt;shotT+=dt;recoil=Math.max(0,recoil-dt*1.8);
@@ -189,6 +230,13 @@ function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDel
  cannon.position.x=-1.12+recoil*.65;cannon.rotation.z=(walking||running)?Math.sin(walkT*(running?11.2:7.4))*.025:0;cannon.rotation.y=combatMode?-.12:0;
  thrusters.forEach((t,i)=>{t.rotation.x=jetting?Math.sin(walkT*20+i)*.04:0;t.children.forEach(o=>{if(o.material===glow)o.scale.setScalar(jetting?1.8:1);});});
  if(firing&&shotT>.28){spawnShot();shotT=0;}
+ if(ejecting){ejectT+=dt;const e=THREE.MathUtils.clamp(ejectT/1.35,0,1);pilot.position.y=3.95+e*3.2;pilot.position.z=.72+e*.5;pilot.rotation.z=Math.sin(e*Math.PI)*.18;if(e>=1){ejecting=false;pilot.visible=false;document.getElementById('eject').textContent='EJETAR PILOTO';}}
+ const damagePulse=damageLevel>0?Math.sin(walkT*22)*damageLevel*.025:0;
+ torso.scale.x=1-damageLevel*.055;torso.scale.y=1-damageLevel*.035;torso.rotation.z+=damagePulse;
+ arms.forEach(a=>{a.shoulder.rotation.x=THREE.MathUtils.damp(a.shoulder.rotation.x,damageLevel*.12*a.side,5,dt);});
+ waistBellows.forEach((b,i)=>{b.position.y=2.92-i*.09-(moving?Math.abs(stride)*.018:0);b.scale.x=1-damageLevel*.08;});
+ updateMechanisms();
+
  for(let i=shots.length-1;i>=0;i--){const sh=shots[i];sh.g.position.addScaledVector(sh.v,dt*13);sh.life-=dt;if(sh.life<=0){scene.remove(sh.g);shots.splice(i,1)}}
  if(hitT>0){hitT-=dt;mech.position.x=Math.sin(hitT*45)*.12;camera.position.x+=Math.sin(hitT*50)*hitT*.012;mech.traverse(o=>{if(o.isMesh&&o.material&&o.material.emissive){o.material.emissive.setHex(0x661111);}});if(hitT<=0){mech.position.x=0;updateOrbit();mech.traverse(o=>{if(o.isMesh&&o.material&&o.material.emissive){o.material.emissive.setHex(0x000000);}});}}
  if(wasJumping&&!jumpActive){landT=.35;}wasJumping=jumpActive;if(landT>0){landT-=dt;mech.scale.y=1-Math.sin(Math.max(0,landT)/.35*Math.PI)*.07;torso.rotation.x=-.12;}else{mech.scale.y=1;}
@@ -206,7 +254,7 @@ function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDel
 animate();
 document.getElementById('walk').onclick=()=>{walking=!walking;if(walking)running=false;document.getElementById('walk').textContent=walking?'PARAR':'CAMINHAR';document.getElementById('run').textContent=running?'PARAR CORRIDA':'CORRIDA'};
 document.getElementById('run').onclick=()=>{running=!running;if(running)walking=false;document.getElementById('run').textContent=running?'PARAR CORRIDA':'CORRIDA';document.getElementById('walk').textContent=walking?'PARAR':'CAMINHAR'};
-document.getElementById('damage').onclick=triggerHit;document.getElementById('mode').onclick=()=>setCombatMode(!combatMode);document.getElementById('transform').onclick=startTransform;document.getElementById('victory').onclick=startVictory;document.getElementById('fall').onclick=()=>fallen?standUp():startFall();
+document.getElementById('damage').onclick=triggerHit;document.getElementById('eject').onclick=startEjection;document.getElementById('mode').onclick=()=>setCombatMode(!combatMode);document.getElementById('transform').onclick=startTransform;document.getElementById('victory').onclick=startVictory;document.getElementById('fall').onclick=()=>fallen?standUp():startFall();
 document.getElementById('fire').onpointerdown=()=>{firing=true};document.getElementById('fire').onpointerup=()=>{firing=false};document.getElementById('fire').onpointerleave=()=>{firing=false};
 document.getElementById('jump').onclick=()=>{if(!jumpActive){jumpActive=true;jumpT=0}};document.getElementById('jet').onclick=()=>{jetting=!jetting;document.getElementById('jet').textContent=jetting?'DESLIGAR JATO':'PROPULSÃO'};
 document.getElementById('reset').onclick=()=>{standUp();transforming=false;transformT=0;victory=false;document.getElementById('transform').textContent='TRANSFORMAÇÃO';document.getElementById('victory').textContent='VITÓRIA';walking=false;running=false;firing=false;jetting=false;jumpActive=false;jumpT=0;hitT=0;landT=0;setCombatMode(false);mech.position.set(0,0,0);mech.scale.y=1;camera.position.copy(originalCamera);document.getElementById('walk').textContent='CAMINHAR';document.getElementById('run').textContent='CORRIDA';document.getElementById('jet').textContent='PROPULSÃO';legs.forEach(l=>{l.thigh.rotation.z=0;l.shin.rotation.z=0;l.foot.rotation.z=0});arms.forEach(a=>{a.shoulder.rotation.z=0;a.upper.rotation.z=0});};
