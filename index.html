@@ -247,6 +247,8 @@ button:active {
         <button class="control" id="jump">SALTO</button>
         <button class="control" id="jet">JATO</button>
         <button class="control" id="fire">DISPARAR</button>
+        <button class="control" id="damage">DANO</button>
+        <button class="control" id="destroy">DESTRUIR</button>
         <button class="control" id="reset">REINICIAR</button>
         <button class="control" id="back">MENU</button>
     </div>
@@ -318,6 +320,85 @@ function adaptNitro(source) {
     source = source.replace(
         "g.position.set(-1.9,3.9,.45)",
         "g.position.set(1.9,3.9,.45)"
+    );
+
+    // Segunda etapa: placas de blindagem destacáveis, detritos e faíscas.
+    const damageSystem = `
+const armorParts=[];
+const armorDebris=[];
+const impactSparks=[];
+let damageEvents=0;
+const sparkMaterial=new THREE.MeshBasicMaterial({color:0xffc56b});
+function registerArmor(parent,points,depth,material,pos){
+ const part=plate(parent,points,depth,material,pos);
+ const record={mesh:part,parent,position:part.position.clone(),quaternion:part.quaternion.clone(),scale:part.scale.clone(),detached:false};
+ armorParts.push(record);
+ return part;
+}
+registerArmor(torso,[[-.78,.48],[-.58,.79],[-.18,.82],[-.37,.22],[-.72,.14]],.09,edge,[0,0,.55]);
+registerArmor(torso,[[.78,.48],[.58,.79],[.18,.82],[.37,.22],[.72,.14]],.09,edge,[0,0,.55]);
+arms.forEach(a=>{
+ const s=a.side;
+ registerArmor(a.shoulder,s<0?[[-.22,.12],[-.56,.27],[-.68,.08],[-.54,-.2]]:[[.22,.12],[.56,.27],[.68,.08],[.54,-.2]],.10,blue,[0,0,.43]);
+ registerArmor(a.fore,[[-.18,-.04],[-.23,-.38],[-.08,-.57],[.18,-.52],[.23,-.22]],.09,edge,[0,0,.27]);
+});
+legs.forEach(l=>{
+ registerArmor(l.thigh,[[-.22,-.12],[-.25,-.48],[-.12,-.72],[.12,-.72],[.25,-.48],[.22,-.12]],.09,edge,[0,0,.31]);
+ registerArmor(l.shin,[[-.19,-.08],[-.23,-.45],[-.12,-.69],[.12,-.69],[.23,-.45],[.19,-.08]],.09,blue2,[0,0,.31]);
+});
+function detachArmor(record,index){
+ if(record.detached)return;
+ record.mesh.updateWorldMatrix(true,false);
+ scene.attach(record.mesh);
+ record.detached=true;
+ const direction=index%2===0?-1:1;
+ armorDebris.push({mesh:record.mesh,velocity:new THREE.Vector3(direction*(1.2+(index%3)*.35),2.0+(index%2)*.65,(index%3-1)*1.1),spin:new THREE.Vector3(.8+index*.13,1.1+index*.09,.7),life:5});
+}
+function detachAllArmor(){armorParts.forEach((part,i)=>detachArmor(part,i));}
+function applyArmorDamage(){
+ damageEvents++;
+ const target=Math.min(armorParts.length,damageEvents);
+ for(let i=0;i<target;i++){if(!armorParts[i].detached){detachArmor(armorParts[i],i);break;}}
+}
+function spawnImpactSparks(){
+ for(let i=0;i<9;i++){
+  const spark=mesh(new THREE.SphereGeometry(.035,6,5),sparkMaterial,[0,0,0],scene);
+  spark.position.set((Math.random()-.5)*.9,2.5+Math.random()*2.0,.5);
+  impactSparks.push({mesh:spark,velocity:new THREE.Vector3((Math.random()-.5)*3,Math.random()*3,(Math.random()-.5)*2),life:.35+Math.random()*.3});
+ }
+}
+function updateDamageEffects(dt){
+ for(let i=armorDebris.length-1;i>=0;i--){
+  const d=armorDebris[i];d.velocity.y-=7.5*dt;d.mesh.position.addScaledVector(d.velocity,dt);
+  d.mesh.rotation.x+=d.spin.x*dt;d.mesh.rotation.y+=d.spin.y*dt;d.mesh.rotation.z+=d.spin.z*dt;d.life-=dt;
+  if(d.mesh.position.y<.12){d.mesh.position.y=.12;d.velocity.y=Math.abs(d.velocity.y)*.22;d.velocity.x*=.72;d.velocity.z*=.72;}
+  if(d.life<=0){scene.remove(d.mesh);armorDebris.splice(i,1);}
+ }
+ for(let i=impactSparks.length-1;i>=0;i--){
+  const p=impactSparks[i];p.mesh.position.addScaledVector(p.velocity,dt);p.velocity.y-=5*dt;p.life-=dt;
+  p.mesh.scale.setScalar(Math.max(.01,p.life*2.5));
+  if(p.life<=0){scene.remove(p.mesh);impactSparks.splice(i,1);}
+ }
+}
+function resetDamageSystem(){
+ for(const part of armorParts){
+  if(part.detached){part.parent.add(part.mesh);part.mesh.position.copy(part.position);part.mesh.quaternion.copy(part.quaternion);part.mesh.scale.copy(part.scale);part.detached=false;}
+ }
+ armorDebris.length=0;impactSparks.length=0;damageEvents=0;damageLevel=0;
+}
+    `;
+    source = source.replace("animate();", damageSystem + "\\nanimate();");
+    source = source.replace(
+        "function triggerHit(){damageLevel=Math.min(1,damageLevel+.28);if(fallen)return;",
+        "function triggerHit(){damageLevel=Math.min(1,damageLevel+.28);if(fallen)return;applyArmorDamage();spawnImpactSparks();"
+    );
+    source = source.replace(
+        "renderer.render(scene,camera);",
+        "updateDamageEffects(dt);\\n renderer.render(scene,camera);"
+    );
+    source = source.replace(
+        "reset: function() {",
+        "damage: function(){triggerHit();},\\n        destroy: function(){damageLevel=1;detachAllArmor();startFall();},\\n        reset: function() {\\n            resetDamageSystem();"
     );
 
     const gameplay = `
@@ -696,6 +777,9 @@ document.getElementById("jet").onclick = () => {
     const n = getNitro();
     if (n) n.jetToggle();
 };
+
+document.getElementById("damage").onclick = () => { const n=getNitro(); if(n)n.damage(); };
+document.getElementById("destroy").onclick = () => { const n=getNitro(); if(n)n.destroy(); };
 
 document.getElementById("reset").onclick = () => {
 
