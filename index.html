@@ -384,16 +384,81 @@ function resetDamageSystem(){
  for(const part of armorParts){
   if(part.detached){part.parent.add(part.mesh);part.mesh.position.copy(part.position);part.mesh.quaternion.copy(part.quaternion);part.mesh.scale.copy(part.scale);part.detached=false;}
  }
- armorDebris.length=0;impactSparks.length=0;damageEvents=0;damageLevel=0;
+ armorDebris.length=0;impactSparks.length=0;damageEvents=0;damageLevel=0;resetMechanicalFailures();
+}
+
+const failedJoints=[];
+const faultMarkers=[];
+const thrusterHealth=[1,1];
+let mechanicalHitCount=0;
+const faultMaterial=new THREE.MeshBasicMaterial({color:0xff321f});
+const jointTargets=[
+ ...legs.map((l,i)=>({kind:"leg",joint:l.knee,limb:l,side:l.side,index:i})),
+ ...arms.map((a,i)=>({kind:"arm",joint:a.elbow,limb:a,side:a.side,index:i}))
+];
+function applySystemDamage(){
+ mechanicalHitCount++;
+ const targetIndex=mechanicalHitCount-1;
+ if(targetIndex<jointTargets.length){
+  const target=jointTargets[targetIndex];
+  if(!failedJoints.some(x=>x.target===target)){
+   const marker=mesh(new THREE.SphereGeometry(.075,8,6),faultMaterial,[0,0,.27],target.joint);
+   faultMarkers.push(marker);
+   failedJoints.push({target,marker});
+  }
+ }else{
+  const tIndex=(targetIndex-jointTargets.length)%2;
+  thrusterHealth[tIndex]=0;
+  if(thrusterHealth[0]===0&&thrusterHealth[1]===0)jetting=false;
+ }
+}
+function updateMechanicalFailures(dt){
+ failedJoints.forEach(({target})=>{
+  if(target.kind==="leg"){
+   target.limb.shin.rotation.z=THREE.MathUtils.damp(target.limb.shin.rotation.z,target.side*.72,4,dt);
+   target.limb.foot.rotation.z=THREE.MathUtils.damp(target.limb.foot.rotation.z,-target.side*.34,4,dt);
+   target.limb.thigh.rotation.z=THREE.MathUtils.damp(target.limb.thigh.rotation.z,target.side*.12,4,dt);
+  }else{
+   target.limb.fore.rotation.z=THREE.MathUtils.damp(target.limb.fore.rotation.z,-target.side*.68,4,dt);
+   target.limb.upper.rotation.z=THREE.MathUtils.damp(target.limb.upper.rotation.z,target.side*.22,4,dt);
+  }
+ });
+ thrusters.forEach((pod,i)=>{
+  if(thrusterHealth[i]===0){
+   pod.rotation.z=THREE.MathUtils.damp(pod.rotation.z,Math.sin(performance.now()*.018+i)*.16,5,dt);
+   pod.children.forEach(o=>{if(o.material===glow)o.scale.setScalar(.08);});
+  }
+ });
+ if(failedJoints.some(x=>x.target.kind==="leg"&&x.target.limb.side<0) &&
+    failedJoints.some(x=>x.target.kind==="leg"&&x.target.limb.side>0)){
+  walking=false;running=false;
+ }
+ if(failedJoints.some(x=>x.target.kind==="arm"))firing=false;
+}
+function resetMechanicalFailures(){
+ failedJoints.length=0;
+ faultMarkers.forEach(m=>m.parent&&m.parent.remove(m));
+ faultMarkers.length=0;
+ thrusterHealth[0]=1;thrusterHealth[1]=1;mechanicalHitCount=0;
+ thrusters.forEach(p=>p.children.forEach(o=>{if(o.material===glow)o.scale.setScalar(1);}));
+}
+function destroyMechanicalSystems(){
+ jointTargets.forEach(target=>{
+  if(!failedJoints.some(x=>x.target===target)){
+   const marker=mesh(new THREE.SphereGeometry(.075,8,6),faultMaterial,[0,0,.27],target.joint);
+   faultMarkers.push(marker);failedJoints.push({target,marker});
+  }
+ });
+ thrusterHealth[0]=0;thrusterHealth[1]=0;jetting=false;walking=false;running=false;firing=false;
 }
     `;
     source = source.replace(
         "function triggerHit(){damageLevel=Math.min(1,damageLevel+.28);if(fallen)return;",
-        "function triggerHit(){damageLevel=Math.min(1,damageLevel+.28);if(fallen)return;applyArmorDamage();spawnImpactSparks();"
+        "function triggerHit(){damageLevel=Math.min(1,damageLevel+.28);if(fallen)return;applyArmorDamage();applySystemDamage();spawnImpactSparks();"
     );
     source = source.replace(
         "renderer.render(scene,camera);",
-        "updateDamageEffects(dt);\n renderer.render(scene,camera);"
+        "updateDamageEffects(dt);\n updateMechanicalFailures(dt);\n renderer.render(scene,camera);"
     );
     source = source.replace(
         "reset: function() {",
