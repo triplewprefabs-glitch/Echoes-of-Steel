@@ -98,7 +98,7 @@ const orbitOffset=camera.position.clone().sub(orbitTarget);
 const orbitSpherical=new THREE.Spherical().setFromVector3(orbitOffset);
 let orbitTheta=orbitSpherical.theta, orbitPhi=orbitSpherical.phi, orbitRadius=orbitSpherical.radius;
 function portraitLayout(){return innerHeight>innerWidth;}
-function frameForScreen(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();if(!cameraUserMoved){orbitRadius=portraitLayout()?23.5:17.8;orbitPhi=portraitLayout()?1.48:Math.acos(2.3/17.8);orbitTheta=Math.atan2(5.8,19.5);}updateOrbit();}
+function frameForScreen(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();orbitRadius=portraitLayout()?22.5:13.8;if(!cameraUserMoved){orbitPhi=portraitLayout()?1.48:Math.acos(2.3/17.8);orbitTheta=Math.atan2(5.8,19.5);}updateOrbit();}
 let cameraPointers=new Map(), dragLast=null, pinchDistance=0, cameraUserMoved=false;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function updateOrbit(){
@@ -109,12 +109,12 @@ function updateOrbit(){
 }
 function cameraPreset(name){
  cameraUserMoved=true;
- const fit=portraitLayout()?23.5:17;
+ const fit=portraitLayout()?22.5:13.8;
  if(name==="front"){orbitTheta=0;orbitPhi=Math.PI/2;orbitRadius=fit;}
  if(name==="side"){orbitTheta=Math.PI/2;orbitPhi=Math.PI/2;orbitRadius=fit;}
  if(name==="back"){orbitTheta=Math.PI;orbitPhi=Math.PI/2;orbitRadius=fit;}
  if(name==="top"){orbitTheta=0;orbitPhi=.28;orbitRadius=fit+2;}
- if(name==="home"){orbitTheta=Math.atan2(5.8,19.5);orbitPhi=portraitLayout()?1.48:Math.acos(2.3/17.8);orbitRadius=fit+(portraitLayout()?0:.8);}
+ if(name==="home"){orbitTheta=Math.atan2(5.8,19.5);orbitPhi=portraitLayout()?1.48:Math.acos(2.3/17.8);orbitRadius=fit;}
  updateOrbit();
 }
 function pointerDistance(){
