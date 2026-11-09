@@ -4,9 +4,9 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Metal Warriors — Nitro geométrico</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#090f1a;color:#eaf2ff;font-family:Arial,sans-serif}#view{position:fixed;inset:0}canvas{display:block;width:100%;height:100%}#hud{position:fixed;inset:0;pointer-events:none;background:linear-gradient(180deg,#07101b88,transparent 24%,transparent 72%,#07101b88)}#brand{position:absolute;left:18px;top:14px;font-weight:900;letter-spacing:2px;text-shadow:0 2px 8px #000}#brand small{display:block;font-size:10px;color:#83b8ff;letter-spacing:3px;margin-top:4px}#help{position:absolute;right:16px;top:16px;text-align:right;font-size:12px;color:#d2e2f8;text-shadow:0 2px 6px #000}#controls{position:absolute;left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:9px;pointer-events:auto}button{background:#10233add;border:1px solid #5d9fe8;color:#eaf5ff;border-radius:10px;padding:11px 15px;font-weight:bold;letter-spacing:.5px;box-shadow:0 4px 14px #0008}button:active{background:#24518a}#portrait{display:none;position:fixed;inset:0;background:#07101a;color:white;z-index:5;align-items:center;justify-content:center;text-align:center;padding:30px;font-weight:bold;letter-spacing:1px}
-#cameraControls{position:fixed;right:12px;bottom:18px;z-index:4;display:flex;flex-direction:column;gap:7px;pointer-events:auto}#cameraControls .camrow{display:flex;gap:6px;justify-content:flex-end}#cameraControls button{padding:9px 11px;font-size:11px;background:#071a2ddd;border-color:#70baff}#cameraLabel{font-size:10px;text-align:right;color:#c7e4ff;text-shadow:0 2px 5px #000;margin-bottom:2px;letter-spacing:1px}#view{touch-action:none}
-@media(orientation:portrait){#portrait{display:flex}}@media(max-width:900px){#controls{flex-wrap:wrap;max-width:95%;justify-content:center}button{padding:8px 10px;font-size:11px}}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#090f1a;color:#eaf2ff;font-family:Arial,sans-serif}#view{position:fixed;inset:0}canvas{display:block;width:100%;height:100%}#hud{position:fixed;inset:0;pointer-events:none;background:linear-gradient(180deg,#07101b88,transparent 24%,transparent 72%,#07101b88)}#brand{position:absolute;left:18px;top:14px;font-weight:900;letter-spacing:2px;text-shadow:0 2px 8px #000}#brand small{display:block;font-size:10px;color:#83b8ff;letter-spacing:3px;margin-top:4px}#help{position:absolute;right:16px;top:16px;text-align:right;font-size:12px;color:#d2e2f8;text-shadow:0 2px 6px #000}#controls{position:absolute;left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:9px;pointer-events:auto}button{background:#10233add;border:1px solid #5d9fe8;color:#eaf5ff;border-radius:10px;padding:11px 15px;font-weight:bold;letter-spacing:.5px;box-shadow:0 4px 14px #0008}button:active{background:#24518a}#portrait{display:none}
+#cameraControls{position:fixed;right:10px;top:64px;z-index:4;display:flex;flex-direction:column;gap:7px;pointer-events:auto}#cameraControls .camrow{display:flex;gap:6px;justify-content:flex-end}#cameraControls button{padding:9px 11px;font-size:11px;background:#071a2ddd;border-color:#70baff}#cameraLabel{font-size:10px;text-align:right;color:#c7e4ff;text-shadow:0 2px 5px #000;margin-bottom:2px;letter-spacing:1px}#view{touch-action:none}
+@media(max-width:900px){#controls{left:8px;right:8px;bottom:max(10px,env(safe-area-inset-bottom));transform:none;max-width:none;flex-wrap:wrap;justify-content:center;gap:5px}#controls button{padding:8px 9px;font-size:10px}#cameraControls{right:7px;top:62px;gap:5px}#cameraControls button{padding:7px 8px;font-size:9px}#cameraLabel{font-size:8px}#help{top:58px;font-size:10px}#brand{font-size:13px}#brand small{font-size:8px}}@media(orientation:portrait) and (max-width:600px){#controls{max-width:calc(100% - 12px);bottom:max(7px,env(safe-area-inset-bottom));gap:4px}#controls button{padding:7px 7px;font-size:9px}#cameraControls{top:88px}#help{display:none}}
 </style></head>
 <body><div id="view"></div><div id="hud"><div id="brand">METAL WARRIORS<small>PROTÓTIPO 3D • NITRO</small></div><div id="help">MODELO PROCEDURAL<br>GEOMETRIA ARTICULADA</div><div id="controls"><button id="walk">CAMINHAR</button><button id="run">CORRIDA</button><button id="jump">SALTO</button><button id="jet">PROPULSÃO</button><button id="fire">DISPARAR</button><button id="damage">DANO</button><button id="mode">MODO COMBATE</button><button id="transform">TRANSFORMAÇÃO</button><button id="victory">VITÓRIA</button><button id="fall">QUEDA / DESTRUIÇÃO</button><button id="reset">POSE NEUTRA</button></div></div><div id="cameraControls"><div id="cameraLabel">CÂMERA LIVRE • ARRASTE PARA GIRAR</div><div class="camrow"><button id="camFront">FRENTE</button><button id="camSide">LADO</button></div><div class="camrow"><button id="camBack">COSTAS</button><button id="camTop">CIMA</button><button id="camHome">CENTRO</button></div></div><div id="portrait">GIRE O CELULAR PARA A PAISAGEM<br><br>METAL WARRIORS</div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
@@ -14,7 +14,7 @@
 (()=>{
 const host=document.getElementById('view');
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x9aa8b5);scene.fog=new THREE.Fog(0x9aa8b5,24,65);
-const camera=new THREE.PerspectiveCamera(34,innerWidth/innerHeight,.1,120);camera.position.set(7.7,5.3,15.8);camera.lookAt(0,3.2,0);
+const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.1,120);camera.position.set(5.8,5.1,19.5);camera.lookAt(0,3.05,0);
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;host.appendChild(renderer.domElement);
 scene.add(new THREE.HemisphereLight(0xddeeff,0x28313b,2.0));const key=new THREE.DirectionalLight(0xffffff,3.0);key.position.set(-5,11,9);key.castShadow=true;key.shadow.mapSize.set(1024,1024);scene.add(key);const rim=new THREE.DirectionalLight(0x438cff,1.6);rim.position.set(7,5,-7);scene.add(rim);
 const mat=(c,metal=.55,rough=.42)=>new THREE.MeshStandardMaterial({color:c,metalness:metal,roughness:rough});
@@ -97,6 +97,8 @@ const orbitTarget=new THREE.Vector3(0,3.05,0);
 const orbitOffset=camera.position.clone().sub(orbitTarget);
 const orbitSpherical=new THREE.Spherical().setFromVector3(orbitOffset);
 let orbitTheta=orbitSpherical.theta, orbitPhi=orbitSpherical.phi, orbitRadius=orbitSpherical.radius;
+function portraitLayout(){return innerHeight>innerWidth;}
+function frameForScreen(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();if(!cameraUserMoved){orbitRadius=portraitLayout()?23.5:17.8;orbitPhi=portraitLayout()?1.48:Math.acos(2.3/17.8);orbitTheta=Math.atan2(5.8,19.5);}updateOrbit();}
 let cameraPointers=new Map(), dragLast=null, pinchDistance=0, cameraUserMoved=false;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function updateOrbit(){
@@ -107,11 +109,12 @@ function updateOrbit(){
 }
 function cameraPreset(name){
  cameraUserMoved=true;
- if(name==="front"){orbitTheta=0;orbitPhi=Math.PI/2;orbitRadius=17;}
- if(name==="side"){orbitTheta=Math.PI/2;orbitPhi=Math.PI/2;orbitRadius=17;}
- if(name==="back"){orbitTheta=Math.PI;orbitPhi=Math.PI/2;orbitRadius=17;}
- if(name==="top"){orbitTheta=0;orbitPhi=.28;orbitRadius=19;}
- if(name==="home"){orbitTheta=Math.atan2(7.7,15.8);orbitPhi=Math.acos(2.3/17.8);orbitRadius=17.8;}
+ const fit=portraitLayout()?23.5:17;
+ if(name==="front"){orbitTheta=0;orbitPhi=Math.PI/2;orbitRadius=fit;}
+ if(name==="side"){orbitTheta=Math.PI/2;orbitPhi=Math.PI/2;orbitRadius=fit;}
+ if(name==="back"){orbitTheta=Math.PI;orbitPhi=Math.PI/2;orbitRadius=fit;}
+ if(name==="top"){orbitTheta=0;orbitPhi=.28;orbitRadius=fit+2;}
+ if(name==="home"){orbitTheta=Math.atan2(5.8,19.5);orbitPhi=portraitLayout()?1.48:Math.acos(2.3/17.8);orbitRadius=fit+(portraitLayout()?0:.8);}
  updateOrbit();
 }
 function pointerDistance(){
@@ -143,7 +146,7 @@ document.getElementById("camSide").onclick=()=>cameraPreset("side");
 document.getElementById("camBack").onclick=()=>cameraPreset("back");
 document.getElementById("camTop").onclick=()=>cameraPreset("top");
 document.getElementById("camHome").onclick=()=>cameraPreset("home");
-updateOrbit();
+frameForScreen();
 function triggerHit(){if(fallen)return;hitT=.48;mech.position.x=.12;torso.rotation.z=.16;arms.forEach(a=>a.upper.rotation.z=-.25*a.side);}
 function startTransform(){if(fallen)return;transforming=!transforming;transformT=0;document.getElementById('transform').textContent=transforming?'REVERTER TRANSFORMAÇÃO':'TRANSFORMAÇÃO';}
 function startFall(){fallen=true;victory=false;transforming=false;walking=running=firing=jetting=jumpActive=false;document.getElementById('fall').textContent='LEVANTAR';}
@@ -152,30 +155,37 @@ function startVictory(){if(fallen)return;victory=!victory;walking=running=firing
 function setCombatMode(v){combatMode=v;document.getElementById("mode").textContent=combatMode?"MODO NORMAL":"MODO COMBATE";}
 function spawnShot(){const g=new THREE.Group();mesh(new THREE.SphereGeometry(.12,10,8),glow,[0,0,0],g);mesh(new THREE.SphereGeometry(.2,8,6),new THREE.MeshBasicMaterial({color:0x42baff,transparent:true,opacity:.25}),[0,0,0],g);g.position.set(-1.9,3.9,.45);scene.add(g);shots.push({g,v:new THREE.Vector3(-.22,.015,0),life:1.8});recoil=.16;}
 function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.04);walkT+=dt;shotT+=dt;recoil=Math.max(0,recoil-dt*1.8);
- const gaitRate=running?10.6:7.0;
+ const gaitRate=running?9.2:5.8;
  const phase=walkT*gaitRate;
- const stride=(walking||running)?Math.sin(phase):Math.sin(walkT*1.35)*.018;
- const gaitBlend=(walking||running)?1:0;
+ const moving=walking||running;
+ const stride=moving?Math.sin(phase):0;
+ const gaitBlend=moving?1:0;
  legs.forEach(l=>{
   const a=stride*l.side;
+  const swing=Math.sin(phase)*l.side;
   const lift=Math.max(0,Math.cos(phase)*l.side);
-  l.thigh.rotation.z=THREE.MathUtils.damp(l.thigh.rotation.z,a*(running?.55:.39),11,dt);
-  l.shin.rotation.z=THREE.MathUtils.damp(l.shin.rotation.z,gaitBlend?lift*(running?-.92:-.62):0,13,dt);
-  l.foot.rotation.z=THREE.MathUtils.damp(l.foot.rotation.z,gaitBlend?(-lift*.22+a*.12):0,14,dt);
-  l.hip.rotation.x=THREE.MathUtils.damp(l.hip.rotation.x,gaitBlend?Math.sin(phase+l.side*.35)*.045:0,8,dt);
+  const kneeBend=moving?Math.max(0,Math.cos(phase)*l.side)*(running?-.9:-.62):0;
+  l.thigh.rotation.z=THREE.MathUtils.damp(l.thigh.rotation.z,swing*(running?.48:.34),9,dt);
+  l.shin.rotation.z=THREE.MathUtils.damp(l.shin.rotation.z,kneeBend,12,dt);
+  l.foot.rotation.z=THREE.MathUtils.damp(l.foot.rotation.z,moving?(-kneeBend*.28-swing*.10):0,13,dt);
+  l.hip.rotation.x=THREE.MathUtils.damp(l.hip.rotation.x,moving?Math.sin(phase+l.side*.35)*.055:Math.sin(walkT*1.1)*.008,8,dt);
  });
  arms.forEach(a=>{
   const opposite=Math.sin(phase+Math.PI)*a.side;
-  a.shoulder.rotation.z=THREE.MathUtils.damp(a.shoulder.rotation.z,gaitBlend?opposite*(running?.25:.17):Math.sin(walkT*1.4)*.012*a.side,10,dt);
-  a.upper.rotation.z=THREE.MathUtils.damp(a.upper.rotation.z,gaitBlend?opposite*(running?.24:.18):0,10,dt);
-  a.elbow.rotation.z=THREE.MathUtils.damp(a.elbow.rotation.z,gaitBlend?Math.max(0,opposite)*-.34:0,12,dt);
-  a.fore.rotation.z=THREE.MathUtils.damp(a.fore.rotation.z,gaitBlend?-.06*a.side:0,10,dt);
+  a.shoulder.rotation.z=THREE.MathUtils.damp(a.shoulder.rotation.z,gaitBlend?opposite*(running?.30:.21):Math.sin(walkT*1.4)*.012*a.side,9,dt);
+  a.upper.rotation.z=THREE.MathUtils.damp(a.upper.rotation.z,gaitBlend?opposite*(running?.18:.12):0,9,dt);
+  a.elbow.rotation.z=THREE.MathUtils.damp(a.elbow.rotation.z,gaitBlend?-.12-Math.max(0,opposite)*.34:0,11,dt);
+  a.fore.rotation.z=THREE.MathUtils.damp(a.fore.rotation.z,gaitBlend?-.06*a.side:Math.sin(walkT*1.2)*.01,10,dt);
+  a.hand.rotation.x=THREE.MathUtils.damp(a.hand.rotation.x,moving?Math.sin(phase+Math.PI)*.08:0,8,dt);
  });
  let jumpY=0;if(jumpActive){jumpT+=dt;const duration=.95;const u=Math.min(jumpT/duration,1);jumpY=Math.sin(Math.PI*u)*1.25;if(u>=1){jumpActive=false;jumpT=0;}}
- const bob=(walking||running)?Math.abs(Math.sin(phase))*(running?.105:.065):Math.sin(walkT*1.5)*.012;
+ const bob=moving?Math.abs(Math.sin(phase*2))*(running?.10:.055):Math.sin(walkT*2.1)*.012;
  mech.position.y=jumpY+(jetting?Math.sin(walkT*18)*.035:0);
- torso.position.y=3.45+bob+(jumpActive ? .08 : 0)+(jetting ? .1 : 0)+(combatMode?-.18:0);torso.rotation.z=(walking||running)?-Math.sin(phase)*.035+(running?-.045:0):(jumpActive?-.08:0);torso.rotation.x=(combatMode?-.08:0)+(running?-.055:0)+(jumpActive?-.035:0);
- head.rotation.z=(walking||running)?Math.sin(phase)*.018:Math.sin(walkT*1.1)*.008;head.rotation.x=combatMode?-.06:0;
+ pelvis.rotation.z=THREE.MathUtils.damp(pelvis.rotation.z,moving?Math.sin(phase)*.025:Math.sin(walkT*.8)*.006,6,dt);
+ torso.position.y=3.45+bob+(jumpActive?.08:0)+(jetting?.1:0)+(combatMode?-.18:0)+Math.sin(walkT*2.1)*.012;
+ torso.rotation.z=THREE.MathUtils.damp(torso.rotation.z,moving?-Math.sin(phase)*.025+(running?-.035:0):(jumpActive?-.08:0),7,dt);
+ torso.rotation.x=THREE.MathUtils.damp(torso.rotation.x,(combatMode?-.08:0)+(running?-.055:0)+(jumpActive?-.035:0)+(jetting?-.06:0),7,dt);
+ head.rotation.z=THREE.MathUtils.damp(head.rotation.z,moving?Math.sin(phase)*.012:Math.sin(walkT*1.1)*.008,6,dt);head.rotation.x=THREE.MathUtils.damp(head.rotation.x,combatMode?-.06:0,6,dt);
  cannon.position.x=-1.12+recoil*.65;cannon.rotation.z=(walking||running)?Math.sin(walkT*(running?11.2:7.4))*.025:0;cannon.rotation.y=combatMode?-.12:0;
  thrusters.forEach((t,i)=>{t.rotation.x=jetting?Math.sin(walkT*20+i)*.04:0;t.children.forEach(o=>{if(o.material===glow)o.scale.setScalar(jetting?1.8:1);});});
  if(firing&&shotT>.28){spawnShot();shotT=0;}
@@ -185,7 +195,8 @@ function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDel
  mech.rotation.y=Math.sin(walkT*.35)*.025;
  // Procedural transformation: compact crouch and deploy/retract arms and legs.
  if(transforming){transformT=Math.min(1,transformT+dt*1.25);}else{transformT=Math.max(0,transformT-dt*1.25);}
- const tr=Math.sin(transformT*Math.PI*.5);pelvis.rotation.z=tr*.08;torso.rotation.z+=(transforming?-.06:0);arms.forEach(a=>{a.shoulder.rotation.z+=(transforming?-.18*a.side:0);a.elbow.rotation.z=(transforming?-.35*a.side*tr:0);});legs.forEach(l=>{l.thigh.rotation.z+=(transforming ? .12*l.side : 0);l.shin.rotation.z=transforming?-.22*tr:0;});
+ const tr=Math.sin(transformT*Math.PI*.5);
+ if(tr>.001){pelvis.rotation.z+=tr*.025;torso.rotation.z-=tr*.012;arms.forEach(a=>{a.shoulder.rotation.z-=tr*.035*a.side;a.elbow.rotation.z-=tr*.06*a.side;});legs.forEach(l=>{l.thigh.rotation.z+=tr*.025*l.side;l.shin.rotation.z=-tr*.12;});}
  // Victory: raise both arms and lean back slightly.
  if(victory){arms.forEach(a=>{a.shoulder.rotation.z=-a.side*1.05;a.upper.rotation.z=-a.side*.45;a.elbow.rotation.z=-.35;});torso.rotation.x=-.12;head.rotation.x=-.08;}
  // Dramatic knockdown/destruction pose with slow settling.
@@ -199,6 +210,6 @@ document.getElementById('damage').onclick=triggerHit;document.getElementById('mo
 document.getElementById('fire').onpointerdown=()=>{firing=true};document.getElementById('fire').onpointerup=()=>{firing=false};document.getElementById('fire').onpointerleave=()=>{firing=false};
 document.getElementById('jump').onclick=()=>{if(!jumpActive){jumpActive=true;jumpT=0}};document.getElementById('jet').onclick=()=>{jetting=!jetting;document.getElementById('jet').textContent=jetting?'DESLIGAR JATO':'PROPULSÃO'};
 document.getElementById('reset').onclick=()=>{standUp();transforming=false;transformT=0;victory=false;document.getElementById('transform').textContent='TRANSFORMAÇÃO';document.getElementById('victory').textContent='VITÓRIA';walking=false;running=false;firing=false;jetting=false;jumpActive=false;jumpT=0;hitT=0;landT=0;setCombatMode(false);mech.position.set(0,0,0);mech.scale.y=1;camera.position.copy(originalCamera);document.getElementById('walk').textContent='CAMINHAR';document.getElementById('run').textContent='CORRIDA';document.getElementById('jet').textContent='PROPULSÃO';legs.forEach(l=>{l.thigh.rotation.z=0;l.shin.rotation.z=0;l.foot.rotation.z=0});arms.forEach(a=>{a.shoulder.rotation.z=0;a.upper.rotation.z=0});};
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));});
+addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));frameForScreen();});
 })();
 </script></body></html>
