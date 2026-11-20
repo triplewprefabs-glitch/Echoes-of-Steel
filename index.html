@@ -1,0 +1,2410 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>MECH-002 — Treino 3D</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,sans-serif}
+*{box-sizing:border-box;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#070a10;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+.hud{position:fixed;z-index:4;left:14px;top:12px;text-shadow:0 2px 8px #000;pointer-events:none}
+.title{color:#f59e0b;font-size:15px;font-weight:900;letter-spacing:.15em}
+.sub{margin-top:5px;color:#c5cfdd;font-size:10px;letter-spacing:.09em}
+.top-right{position:fixed;z-index:6;right:14px;top:12px;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.fs-btn{min-height:32px;padding:0 10px;border:1px solid #f59e0b88;border-radius:8px;background:#151e2cee;color:#fff3c4;font:900 10px system-ui;letter-spacing:.08em;touch-action:manipulation;cursor:pointer}
+.fs-btn:active,.fs-btn.active{background:#7c4210;border-color:#f59e0b}
+.status{color:#f59e0b;font:900 11px system-ui;letter-spacing:.1em;pointer-events:none;text-shadow:0 2px 8px #000}
+.touch{position:fixed;z-index:5;left:16px;right:16px;bottom:16px;display:flex;justify-content:space-between;align-items:flex-end;pointer-events:none}
+.move{display:flex;align-items:center;pointer-events:auto}
+.joystick{position:relative;width:112px;height:112px;border-radius:50%;border:2px solid #f59e0b77;background:radial-gradient(circle at 35% 35%,#1e293bee,#0d131eee);box-shadow:0 6px 20px #000a,inset 0 0 14px #0008;touch-action:none}
+.joystick-knob{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;border:1.5px solid #f59e0b;background:radial-gradient(circle at 35% 30%,#fbbf24,#92400e);box-shadow:0 3px 10px #000c;pointer-events:none;transition:transform .04s linear}
+.actions{display:flex;gap:6px;pointer-events:auto;flex-wrap:wrap;justify-content:flex-end;max-width:56vw}
+.touch button{min-width:54px;min-height:46px;border:1px solid #697589;border-radius:9px;background:#151e2cee;color:#e7edf7;font:900 10px system-ui;letter-spacing:.06em;touch-action:manipulation}
+.touch button:active,.touch button.active{background:#7c4210;border-color:#f59e0b;color:#fff3c4}
+.legend{position:fixed;z-index:4;left:50%;top:14px;transform:translateX(-50%);color:#aeb9c8;font:900 9px system-ui;letter-spacing:.1em;text-align:center;pointer-events:none}
+.gameover{position:fixed;z-index:8;inset:0;display:none;place-items:center;background:#05070dcc}
+.gameover.show{display:grid}
+.gameover .card{padding:28px 34px;border:1px solid #f59e0b;border-radius:14px;background:#111722f2;text-align:center;box-shadow:0 0 40px #000}
+.gameover h2{margin:0 0 8px;color:#f59e0b;letter-spacing:.14em}
+.gameover p{margin:0 0 18px;color:#c5cfdd}
+.gameover button{min-width:150px;min-height:48px;border:1px solid #f59e0b;border-radius:8px;background:#7c4210;color:#fff3c4;font-weight:900}
+.help{position:fixed;z-index:4;left:50%;bottom:136px;transform:translateX(-50%);color:#9eacbe;font:900 9px system-ui;letter-spacing:.08em;pointer-events:none;white-space:nowrap}
+@media(max-width:650px){
+  .title{font-size:12px}
+  .sub{max-width:52vw;line-height:1.35}
+  .legend{display:none}
+  .touch{left:12px;right:12px;bottom:12px}
+  .joystick{width:104px;height:104px}
+  .joystick-knob{width:40px;height:40px;margin:-20px 0 0 -20px}
+  .touch button{min-width:48px;min-height:42px}
+  .actions{gap:4px;max-width:62vw}
+  .help{bottom:124px;font-size:8px}
+}
+</style>
+</head>
+<body>
+<div class="hud"><div class="title">MECH-002 // TREINO 3D</div><div class="sub">SCROLL LATERAL · VOO &amp; MIRA · HUMANOS, TAMBORES &amp; ROBÔS</div></div>
+<div class="legend">A/D: MOVER · W/S: MIRA CIMA/BAIXO · ESPAÇO: VOAR/PULAR · E: EJETAR/EMBARCAR · F/CLIQUE: ATIRAR · Z: DANO</div>
+<div class="top-right">
+  <button class="fs-btn" id="fs-btn" type="button">⛶ TELA CHEIA</button>
+  <div class="status" id="status">CARREGANDO MECH</div>
+</div>
+<div class="help">E: Ejetar/Embarcar · F/Clique: Atirar · W/S: Mirar · Espaço: Voar/Jato</div>
+<div class="gameover" id="gameover"><div class="card"><h2>UNIDADE PERDIDA</h2><p>A arena foi perdida.</p><button id="restart">REINICIAR FASE</button></div></div>
+<div class="touch">
+  <div class="move">
+    <div class="joystick" id="joystick" aria-label="Direcional Analógico">
+      <div class="joystick-knob" id="joystick-knob"></div>
+    </div>
+  </div>
+  <div class="actions">
+    <button id="eject">EJETAR</button>
+    <button id="fire">ATIRAR</button>
+    <button id="damage">DANO</button>
+    <button id="jump">VOAR</button>
+    <button id="reset">RESET</button>
+  </div>
+</div>
+<script>
+const EMBEDDED_MECH_DEFINITION={"format":"metal-warriors-mech","version":3,"name":"MECH-002","createdAt":"2026-11-19T05:53:18.706Z","rootTransform":{"position":[0.203769584008417,-0.14764813021455003,-1.2931679850612408],"rotation":[0,0,0,"XYZ"],"scale":[1,1,1]},"groups":[{"id":"group-147","name":"BRACO_DIR","role":"BRACO_DIR","memberIds":["part-112","part-111","part-116","part-117","part-115","part-114","part-113","part-144","part-119","part-121","part-146","part-145"],"sockets":{"top":[-0.9789,2.7476,1.2932],"bottom":[-0.9789,0.8276,1.2932],"left":[-1.2238,1.7876,1.2932],"right":[-0.734,1.7876,1.2932],"front":[-0.9789,1.7876,1.5932],"back":[-0.9789,1.7876,0.9932]},"adornmentIds":[],"humanoidHeight":null,"position":[0,0,0],"rotation":[0,0,0,"XYZ"],"scale":[1,1,1],"parentGroupId":null},{"id":"group-148","name":"BRACO_ESQ","role":"BRACO_ESQ","memberIds":["part-140","part-50","part-54","part-53","part-52","part-62","part-56","part-60","part-135"],"sockets":{"top":[0.3162,2.5476,1.2932],"bottom":[0.3162,0.9476,1.2932],"left":[0.1362,1.7476,1.2932],"right":[0.4962,1.7476,1.2932],"front":[0.3162,1.7476,1.5332],"back":[0.3162,1.7476,1.0532]},"adornmentIds":[],"humanoidHeight":null,"position":[0,0,0],"rotation":[0,0,0,"XYZ"],"scale":[1,1,1],"parentGroupId":null},{"id":"group-150","name":"TORSO","role":"TORSO","memberIds":["part-36","part-39","part-41","part-42","part-37","part-38","part-46","part-45","part-149","part-43","part-44"],"sockets":{"top":[-0.2638,3.1476,1.2998],"bottom":[-0.2638,1.5547,1.2998],"left":[-0.7488,2.3512,1.2998],"right":[0.2213,2.3512,1.2998],"front":[-0.2638,2.3512,1.7663],"back":[-0.2638,2.3512,0.8332]},"adornmentIds":[],"humanoidHeight":null,"position":[-0.003769584008416982,-0.01235186978544997,0.013167985061240728],"rotation":[0,0,0,"XYZ"],"scale":[1,1,1],"parentGroupId":null},{"id":"group-153","name":"PERNA_DIR","role":"PERNA_DIR","memberIds":["part-133","part-129","part-134","part-152","part-124","part-128","part-127","part-125","part-126","part-123"],"sockets":{"top":[-0.5432,1.8676,1.4532],"bottom":[-0.5432,0.1476,1.4532],"left":[-0.7038,1.0076,1.4532],"right":[-0.3826,1.0076,1.4532],"front":[-0.5432,1.0076,1.7732],"back":[-0.5432,1.0076,1.1332]},"adornmentIds":[],"humanoidHeight":null,"position":[0,0,0],"rotation":[0,0,0,"XYZ"],"scale":[1,1,1],"parentGroupId":null},{"id":"group-154","name":"PERNA_ESQ","role":"PERNA_ESQ","memberIds":["part-151","part-7","part-8","part-15","part-13","part-14","part-25","part-26","part-85","part-9"],"sockets":{"top":[0.0156,1.8676,1.4532],"bottom":[0.0156,0.1476,1.4532],"left":[-0.1449,1.0076,1.4532],"right":[0.1762,1.0076,1.4532],"front":[0.0156,1.0076,1.7732],"back":[0.0156,1.0076,1.1332]},"adornmentIds":[],"humanoidHeight":null,"position":[0,0,0],"rotation":[0,0,0,"XYZ"],"scale":[1,1,1],"parentGroupId":null},{"id":"group-159","name":"CABECA","role":"CABECA","memberIds":["part-76","part-157","part-158","part-156","part-155"],"sockets":{"top":[-0.2361,3.1081,1.4323],"bottom":[-0.2361,2.5101,1.4323],"left":[-0.4759,2.8091,1.4323],"right":[0.0038,2.8091,1.4323],"front":[-0.2361,2.8091,1.6332],"back":[-0.2361,2.8091,1.2315]},"adornmentIds":[],"humanoidHeight":null,"position":[0,0,0],"rotation":[0,0,0,"XYZ"],"scale":[1,1,1],"parentGroupId":null}],"parts":[{"id":"part-7","name":"Pe_esquerdo","type":"rightPrism","color":"#c83228","position":[-0.003769584008416982,0.42764813021455006,1.5731679850612408],"rotation":[-3.141592653589793,-1.560990602642578,-3.141592653589793,"XYZ"],"scale":[0.23999999999999994,0.33330505758561924,0.5712339991701967],"parentGroupId":"group-154"},{"id":"part-8","name":"Cubo chanfrado 8","type":"cube","color":"#c83228","position":[-0.003769584008416982,0.38764813021455,1.3331679850612408],"rotation":[-3.141592653589793,2.7369110631344083e-48,-3.141592653589793,"XYZ"],"scale":[0.2900000055560045,0.49714286666743635,0.24],"parentGroupId":"group-154"},{"id":"part-9","name":"Pe_esquerdo","type":"cube","color":"#c83228","position":[-0.003769584008416982,0.22764813021455005,1.6131679850612408],"rotation":[0,0,0,"XYZ"],"scale":[0.2900000055560045,0.16571428888914544,0.32],"parentGroupId":"group-154"},{"id":"part-13","name":"Pe-esquerdo","type":"beveledBox","color":"#000000","position":[0.07623041599158303,0.78764813021455,1.3331679850612408],"rotation":[0,-1.5381421049105863,0,"XYZ"],"scale":[-0.12000000000000001,0.4124914558395098,0.13813800160268322],"parentGroupId":"group-154"},{"id":"part-14","name":"Placa chanfrada 13 cópia","type":"beveledBox","color":"#000000","position":[-0.003769584008416982,0.98764813021455,1.3331679850612408],"rotation":[0,-1.53814210491059,0,"XYZ"],"scale":[0.08,0.48,0.16],"parentGroupId":"group-154"},{"id":"part-15","name":"Placa chanfrada 13 cópia","type":"beveledBox","color":"#000000","position":[-0.083769584008417,0.78764813021455,1.3331679850612408],"rotation":[0,-1.5381421049105863,0,"XYZ"],"scale":[-0.12000000000000001,0.4124914558395098,0.13813800160268322],"parentGroupId":"group-154"},{"id":"part-25","name":"Cubo chanfrado 8 cópia","type":"cube","color":"#c83228","position":[-0.003769584008416982,1.5076481302145501,1.3331679850612408],"rotation":[0,0,0,"XYZ"],"scale":[0.08285714444457272,0.5385714388897227,0.32],"parentGroupId":"group-154"},{"id":"part-26","name":"Cubo chanfrado 8 cópia cópia","type":"cube","color":"#c83228","position":[-0.083769584008417,1.2676481302145501,1.3331679850612408],"rotation":[0,0,0,"XYZ"],"scale":[0.08285714444457272,0.3314285777782909,0.32],"parentGroupId":"group-154"},{"id":"part-36","name":"Cubo chanfrado 36","type":"cube","color":"#c83228","position":[-0.25984147753667797,1.6597851308372908,1.3463359701224815],"rotation":[0,0,-3.141592653589793,"XYZ"],"scale":[-0.43519346264162634,0.2176374408919842,0.36],"parentGroupId":"group-150"},{"id":"part-37","name":"Cubo chanfrado 36 cópia","type":"cube","color":"#c83228","position":[-0.25984147753667797,2.2061301444023567,1.3863359701224816],"rotation":[0,0,-3.141592653589793,"XYZ"],"scale":[-0.5657515014341143,0.6529123226759526,0.4],"parentGroupId":"group-150"},{"id":"part-38","name":"Cilindro 38","type":"cylinder","color":"#000000","position":[-0.25984147753667797,1.8278912888573111,1.3463359701224815],"rotation":[0,0,0,"XYZ"],"scale":[0.3184160890907283,0.12812888806289122,0.36510244589307544],"parentGroupId":"group-150"},{"id":"part-39","name":"Prisma triangular reto 39","type":"rightPrism","color":"#c83228","position":[-0.25984147753667797,2.4582893814323876,1.6663359701224816],"rotation":[6.521822785128984e-36,-1.5707963267948966,0,"XYZ"],"scale":[0.2,0.10005470121314299,0.7715088537353275],"parentGroupId":"group-150"},{"id":"part-41","name":"Cubo chanfrado 41","type":"cube","color":"#c83228","position":[-0.25984147753667797,2.3322097629173726,1.6663359701224816],"rotation":[0,0,0,"XYZ"],"scale":[0.39167411637746374,0.17410995271358737,0.2],"parentGroupId":"group-150"},{"id":"part-42","name":"Prisma triangular reto 39 cópia","type":"rightPrism","color":"#c83228","position":[-0.25984147753667797,2.1641036048973517,1.6663359701224816],"rotation":[3.141592653589793,1.5707963267948966,0,"XYZ"],"scale":[0.16945946507260726,0.2497455387557208,0.739913213299237],"parentGroupId":"group-150"},{"id":"part-43","name":"Cubo chanfrado 41 cópia","type":"cube","color":"#090b10","position":[-0.243769584008417,2.34764813021455,1.0131679850612407],"rotation":[0,0,0,"XYZ"],"scale":[-0.45571429444514994,0.3314285777782909,0.36],"parentGroupId":"group-150"},{"id":"part-44","name":"Prisma triangular reto 39 cópia cópia","type":"rightPrism","color":"#090b10","position":[-0.243769584008417,2.06764813021455,1.0131679850612407],"rotation":[-3.141592653589793,-1.5707963267948966,0,"XYZ"],"scale":[0.32,0.2856900493591022,0.897653427267452],"parentGroupId":"group-150"},{"id":"part-45","name":"Cilindro 45","type":"cylinder","color":"#000000","position":[0.11623041599158301,2.34764813021455,1.3731679850612408],"rotation":[-3.141592653589793,0,-1.5707963267948968,"XYZ"],"scale":[-0.25215923703003046,0.2240996178484519,0.28],"parentGroupId":"group-150"},{"id":"part-46","name":"Cilindro 45 cópia","type":"cylinder","color":"#000000","position":[-0.643769584008417,2.34764813021455,1.3731679850612408],"rotation":[1.2261427157483562e-16,6.054896135275047e-18,1.5707963267948968,"XYZ"],"scale":[-0.25215923703003046,0.2240996178484519,0.28],"parentGroupId":"group-150"},{"id":"part-50","name":"Placa chanfrada 50","type":"beveledBox","color":"#c83228","position":[0.316230415991583,2.46764813021455,1.2931679850612408],"rotation":[0,1.5707963267948966,0,"XYZ"],"scale":[0.48,0.2062457279197549,0.345345004006708],"parentGroupId":"group-148"},{"id":"part-52","name":"Cubo chanfrado 51 cópia","type":"cube","color":"#c83228","position":[0.236230415991583,2.10764813021455,1.2931679850612408],"rotation":[0,0,0,"XYZ"],"scale":[-0.04142857222228636,0.2071428611114318,0.24],"parentGroupId":"group-148"},{"id":"part-53","name":"Cubo chanfrado 51 cópia cópia","type":"cube","color":"#c83228","position":[0.396230415991583,2.10764813021455,1.2931679850612408],"rotation":[0,0,0,"XYZ"],"scale":[-0.04142857222228636,0.2071428611114318,0.4],"parentGroupId":"group-148"},{"id":"part-54","name":"Placa chanfrada 50 cópia","type":"beveledBox","color":"#c83228","position":[0.316230415991583,2.30764813021455,1.2931679850612408],"rotation":[3.141592653589793,1.5707963267948966,0,"XYZ"],"scale":[0.48,0.2578071598996936,0.345345004006708],"parentGroupId":"group-148"},{"id":"part-56","name":"Cubo chanfrado 51 cópia cópia","type":"cube","color":"#c83228","position":[0.236230415991583,1.82764813021455,1.2931679850612408],"rotation":[0,0,0,"XYZ"],"scale":[-0.053788518615375855,0.1580348591360536,0.18545589146263264],"parentGroupId":"group-148"},{"id":"part-60","name":"Cubo chanfrado 51 cópia cópia cópia","type":"cube","color":"#c83228","position":[0.396230415991583,1.82764813021455,1.2931679850612408],"rotation":[0,0,0,"XYZ"],"scale":[-0.053788518615375855,0.1580348591360536,0.19945320001675948],"parentGroupId":"group-148"},{"id":"part-62","name":"Cilindro 62","type":"cylinder","color":"#000000","position":[0.316230415991583,1.9876481302145501,1.2931679850612408],"rotation":[0,0,0,"XYZ"],"scale":[0.08,0.31870602262513803,0.08],"parentGroupId":"group-148"},{"id":"part-76","name":"Cilindro 76","type":"cylinder","color":"#000000","position":[-0.243769584008417,2.54764813021455,1.3731679850612408],"rotation":[0,0,0,"XYZ"],"scale":[0.24,0.08,0.24],"parentGroupId":"group-159"},{"id":"part-85","name":"Engrenagem 85","type":"gear","color":"#d8dee9","position":[0.156230415991583,0.38764813021455,1.3331679850612408],"rotation":[-2.7369110631344083e-48,-1.5707963267948966,0,"XYZ"],"scale":[0.16,0.16,0.13852456762718324],"parentGroupId":"group-154"},{"id":"part-111","name":"Placa chanfrada 63 cópia","type":"beveledBox","color":"#c83228","position":[-0.8400000000000001,1.5352962604291003,1.3063359701224815],"rotation":[-3.141592653589793,1.5707963267948966,0,"XYZ"],"scale":[-0.2,0.567175751779326,0.345345004006708],"parentGroupId":"group-147"},{"id":"part-112","name":"Placa chanfrada 50 cópia","type":"beveledBox","color":"#c83228","position":[-0.843769584008417,2.3876481302145502,1.2931679850612408],"rotation":[3.141592653589793,-1.5707963267948966,0,"XYZ"],"scale":[-0.32,0.5156143197993872,0.345345004006708],"parentGroupId":"group-147"},{"id":"part-113","name":"Cubo chanfrado 51 cópia cópia","type":"cube","color":"#c83228","position":[-0.9199999999999999,2.0952962604291,1.3063359701224815],"rotation":[0,0,0,"XYZ"],"scale":[0.04142857222228636,0.2071428611114318,0.24],"parentGroupId":"group-147"},{"id":"part-114","name":"Cubo chanfrado 51 cópia","type":"cube","color":"#c83228","position":[-0.76,2.0952962604291,1.3063359701224815],"rotation":[0,0,0,"XYZ"],"scale":[0.04142857222228636,0.2071428611114318,0.24],"parentGroupId":"group-147"},{"id":"part-115","name":"Cilindro 62","type":"cylinder","color":"#000000","position":[-0.8400000000000001,1.9752962604291002,1.3063359701224815],"rotation":[0,0,0,"XYZ"],"scale":[-0.08,0.31870602262513803,0.08],"parentGroupId":"group-147"},{"id":"part-116","name":"Cubo chanfrado 51 cópia cópia","type":"cube","color":"#c83228","position":[-0.76,1.8152962604291,1.3063359701224815],"rotation":[0,0,0,"XYZ"],"scale":[0.053788518615375855,0.1580348591360536,0.18545589146263264],"parentGroupId":"group-147"},{"id":"part-117","name":"Cubo chanfrado 51 cópia cópia cópia","type":"cube","color":"#c83228","position":[-0.9199999999999999,1.8152962604291,1.3063359701224815],"rotation":[0,0,0,"XYZ"],"scale":[0.053788518615375855,0.1580348591360536,0.19945320001675948],"parentGroupId":"group-147"},{"id":"part-119","name":"Placa chanfrada 63","type":"beveledBox","color":"#2e3440","position":[-0.8037695840084169,1.22764813021455,1.3331679850612408],"rotation":[1.5707963267948963,0,0,"XYZ"],"scale":[-0.12,0.567175751779326,0.2762760032053664],"parentGroupId":"group-147"},{"id":"part-121","name":"Cilindro 64 cópia","type":"cylinder","color":"#2e3440","position":[-0.8037695840084169,0.98764813021455,1.4931679850612407],"rotation":[-3.141592653589793,-1.5707963267948966,0,"XYZ"],"scale":[-0.08,0.3413333333333333,0.08],"parentGroupId":"group-147"},{"id":"part-123","name":"Pe_esquerdo","type":"cube","color":"#c83228","position":[-0.523769584008417,0.22764813021455005,1.6131679850612408],"rotation":[0,0,0,"XYZ"],"scale":[-0.2900000055560045,0.16571428888914544,0.32],"parentGroupId":"group-153"},{"id":"part-124","name":"Placa chanfrada 13 cópia","type":"beveledBox","color":"#000000","position":[-0.443769584008417,0.78764813021455,1.3331679850612408],"rotation":[0,1.5381421049105863,0,"XYZ"],"scale":[0.12000000000000001,0.4124914558395098,0.13813800160268322],"parentGroupId":"group-153"},{"id":"part-125","name":"Cubo chanfrado 8","type":"cube","color":"#c83228","position":[-0.523769584008417,0.38764813021455,1.3331679850612408],"rotation":[-3.141592653589793,-2.7369110631344083e-48,3.141592653589793,"XYZ"],"scale":[-0.2900000055560045,0.49714286666743635,0.24],"parentGroupId":"group-153"},{"id":"part-126","name":"Pe_esquerdo","type":"rightPrism","color":"#c83228","position":[-0.523769584008417,0.42764813021455006,1.5731679850612408],"rotation":[-3.141592653589793,1.560990602642578,3.141592653589793,"XYZ"],"scale":[-0.23999999999999994,0.33330505758561924,0.5712339991701967],"parentGroupId":"group-153"},{"id":"part-127","name":"Engrenagem 85","type":"gear","color":"#d8dee9","position":[-0.683769584008417,0.38764813021455,1.3331679850612408],"rotation":[-2.7369110631344083e-48,1.5707963267948966,0,"XYZ"],"scale":[-0.16,0.16,0.13852456762718324],"parentGroupId":"group-153"},{"id":"part-128","name":"Pe-esquerdo","type":"beveledBox","color":"#000000","position":[-0.603769584008417,0.78764813021455,1.3331679850612408],"rotation":[0,1.5381421049105863,0,"XYZ"],"scale":[0.12000000000000001,0.4124914558395098,0.13813800160268322],"parentGroupId":"group-153"},{"id":"part-129","name":"Placa chanfrada 13 cópia","type":"beveledBox","color":"#000000","position":[-0.523769584008417,0.98764813021455,1.3331679850612408],"rotation":[0,1.53814210491059,0,"XYZ"],"scale":[-0.08,0.48,0.16],"parentGroupId":"group-153"},{"id":"part-133","name":"Cubo chanfrado 8 cópia","type":"cube","color":"#c83228","position":[-0.523769584008417,1.5076481302145501,1.3331679850612408],"rotation":[0,0,0,"XYZ"],"scale":[-0.08285714444457272,0.5385714388897227,0.32],"parentGroupId":"group-153"},{"id":"part-134","name":"Cubo chanfrado 8 cópia cópia","type":"cube","color":"#c83228","position":[-0.443769584008417,1.2676481302145501,1.3331679850612408],"rotation":[0,0,0,"XYZ"],"scale":[-0.08285714444457272,0.3314285777782909,0.32],"parentGroupId":"group-153"},{"id":"part-135","name":"Cilindro 135","type":"cylinder","color":"#090b10","position":[0.316230415991583,1.66764813021455,1.2931679850612408],"rotation":[0,0,0,"XYZ"],"scale":[0.36,0.17066666666666666,0.36],"parentGroupId":"group-148"},{"id":"part-140","name":"Cilindro 64 cópia cópia cópia cópia","type":"cylinder","color":"#ffffff","position":[0.316230415991583,1.2676481302145501,1.2931679850612408],"rotation":[3.141592653589793,0,0,"XYZ"],"scale":[0.28,0.6826666666666666,0.28],"parentGroupId":"group-148"},{"id":"part-144","name":"Cone 144","type":"cone","color":"#c83228","position":[-1.083769584008417,2.34764813021455,1.2931679850612408],"rotation":[0,0,1.5707963267948963,"XYZ"],"scale":[0.9237604472832677,0.28,0.6],"parentGroupId":"group-147"},{"id":"part-145","name":"Placa chanfrada 63 cópia","type":"beveledBox","color":"#000000","position":[-0.883769584008417,1.22764813021455,1.2931679850612408],"rotation":[-3.141592653589793,-1.5707963267948966,0,"XYZ"],"scale":[-0.2,0.2062457279197549,0.0690690008013416],"parentGroupId":"group-147"},{"id":"part-146","name":"Placa chanfrada 63 cópia cópia","type":"beveledBox","color":"#000000","position":[-0.843769584008417,1.10764813021455,1.2931679850612408],"rotation":[3.141592653589793,-1.5707963267948966,0,"XYZ"],"scale":[0.16,0.10312286395987745,0.2072070024040248],"parentGroupId":"group-147"},{"id":"part-149","name":"Pirâmide 149","type":"pyramid","color":"#090b10","position":[-0.36376958400841697,2.82764813021455,1.0131679850612407],"rotation":[0,0,0,"XYZ"],"scale":[0.08838835055800454,0.64,0.08838835055800454],"parentGroupId":"group-150"},{"id":"part-151","name":"Cone 151","type":"cone","color":"#c83228","position":[0.096230415991583,1.44764813021455,1.3731679850612408],"rotation":[0,0,-1.5707963267948963,"XYZ"],"scale":[0.969948469647431,0.12,0.48],"parentGroupId":"group-154"},{"id":"part-152","name":"Cone 151 cópia","type":"cone","color":"#c83228","position":[-0.623769584008417,1.44764813021455,1.3731679850612408],"rotation":[-3.141592653589793,0,1.5707963267948963,"XYZ"],"scale":[-0.969948469647431,0.12,0.48],"parentGroupId":"group-153"},{"id":"part-155","name":"Triângulo 155","type":"triangle","color":"#2e3440","position":[-0.243769584008417,2.66764813021455,1.5731679850612408],"rotation":[1.5707963267948963,0,0,"XYZ"],"scale":[0.32,0.14474795864393175,1.0287037343259806],"parentGroupId":"group-159"},{"id":"part-156","name":"Placa chanfrada 156","type":"beveledBox","color":"#c83228","position":[-0.243769584008417,2.74764813021455,1.3731679850612408],"rotation":[1.5707963267948963,0,0,"XYZ"],"scale":[0.4,0.36093002385957107,0.5525520064107328],"parentGroupId":"group-159"},{"id":"part-157","name":"Prisma triangular reto 157","type":"rightPrism","color":"#090b10","position":[-0.04376958400841699,2.8676481302145502,1.3731679850612408],"rotation":[3.0543261909900767,-1.3962634015954634,3.0543261909900767,"XYZ"],"scale":[0.28,0.5713800987182044,0.0816048570243138],"parentGroupId":"group-159"},{"id":"part-158","name":"Prisma triangular reto 157 cópia","type":"rightPrism","color":"#090b10","position":[-0.443769584008417,2.8676481302145502,1.3731679850612408],"rotation":[0,-1.4835298641951802,0,"XYZ"],"scale":[0.28,0.5713800987182044,0.08160485702431382],"parentGroupId":"group-159"}]};
+(async()=>{
+const THREE=await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js');
+
+const DEFAULT_COLORS = Object.freeze({ red: '#c83228', white: '#d8dee9', lead: '#2e3440', amber: '#f59e0b', blue: '#315b83', black: '#090b10' });
+
+const SFX = (() => {
+  let ctx = null;
+  let lastThrusterTick = 0;
+
+  function ensureCtx() {
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) ctx = new AC();
+    }
+    if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+    return ctx;
+  }
+
+  function tone(freq, endFreq, dur, type = 'triangle', gainVal = 0.08, delay = 0) {
+    const c = ensureCtx();
+    if (!c) return;
+    const now = c.currentTime + delay;
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, now);
+    if (endFreq !== null) osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), now + dur);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.linearRampToValueAtTime(gainVal, now + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    osc.connect(g);
+    g.connect(c.destination);
+    osc.start(now);
+    osc.stop(now + dur + 0.02);
+  }
+
+  function noiseBurst(dur, gainVal = 0.12, filterFreq = 900) {
+    const c = ensureCtx();
+    if (!c) return;
+    const size = Math.floor(c.sampleRate * dur);
+    const buf = c.createBuffer(1, size, c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < size; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / size);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const filter = c.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = filterFreq;
+    const g = c.createGain();
+    g.gain.setValueAtTime(gainVal, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
+    src.connect(filter);
+    filter.connect(g);
+    g.connect(c.destination);
+    src.start();
+  }
+
+  return {
+    step() {
+      tone(95 + Math.random() * 20, 42, 0.07, 'sine', 0.09);
+      noiseBurst(0.045, 0.05, 420);
+    },
+    jump() {
+      tone(140, 320, 0.16, 'sawtooth', 0.07);
+      noiseBurst(0.14, 0.08, 1200);
+    },
+    thruster() {
+      const c = ensureCtx();
+      if (!c) return;
+      if (c.currentTime - lastThrusterTick < 0.085) return;
+      lastThrusterTick = c.currentTime;
+      noiseBurst(0.09, 0.065, 650 + Math.random() * 250);
+      tone(75 + Math.random() * 18, 52, 0.08, 'sawtooth', 0.035);
+    },
+    shootPlayer() {
+      tone(520, 130, 0.11, 'square', 0.055);
+      noiseBurst(0.05, 0.04, 2200);
+    },
+    shootPilot() {
+      tone(780, 260, 0.07, 'square', 0.04);
+    },
+    shootEnemy() {
+      tone(340, 110, 0.12, 'sawtooth', 0.045);
+    },
+    hitSpark() {
+      tone(1100 + Math.random() * 400, 380, 0.06, 'square', 0.05);
+      noiseBurst(0.05, 0.06, 2800);
+    },
+    armBreak() {
+      noiseBurst(0.28, 0.16, 520);
+      tone(160, 45, 0.25, 'sawtooth', 0.1);
+    },
+    eject() {
+      tone(220, 540, 0.18, 'triangle', 0.08);
+      noiseBurst(0.12, 0.07, 1500);
+    },
+    enterMech() {
+      tone(180, 360, 0.15, 'sine', 0.09);
+      tone(360, 520, 0.14, 'triangle', 0.07, 0.08);
+    },
+    explosion() {
+      noiseBurst(0.55, 0.24, 340);
+      tone(110, 28, 0.48, 'sawtooth', 0.14);
+    }
+  };
+})();
+
+function makeGeometry(THREE, type) {
+  if (type === 'beveledBox') {
+    const s = new THREE.Shape(); s.moveTo(-.5, -.38); s.lineTo(.5, -.38); s.lineTo(.42, .38); s.lineTo(-.42, .38); s.closePath();
+    const g = new THREE.ExtrudeGeometry(s, { depth: .5, bevelEnabled: true, bevelThickness: .07, bevelSize: .05, bevelSegments: 3 }); g.translate(0, 0, -.25); return g;
+  }
+  if (type === 'cube') { const s = new THREE.Shape(); s.moveTo(-.5, -.5); s.lineTo(.5, -.5); s.lineTo(.5, .5); s.lineTo(-.5, .5); s.closePath(); const g = new THREE.ExtrudeGeometry(s, { depth: 1, bevelEnabled: true, bevelThickness: .08, bevelSize: .06, bevelSegments: 3 }); g.translate(0, 0, -.5); return g; }
+  if (type === 'prism') {
+    const s = new THREE.Shape(); s.moveTo(-.55, -.38); s.lineTo(.55, -.38); s.lineTo(0, .48); s.closePath();
+    const g = new THREE.ExtrudeGeometry(s, { depth: .5, bevelEnabled: true, bevelThickness: .06, bevelSize: .045, bevelSegments: 2 }); g.translate(0, 0, -.25); return g;
+  }
+  if (type === 'triangle') { const s = new THREE.Shape(); s.moveTo(-.58, -.44); s.lineTo(.58, -.44); s.lineTo(0, .52); s.closePath(); const g = new THREE.ExtrudeGeometry(s, { depth: .12, bevelEnabled: true, bevelThickness: .035, bevelSize: .025, bevelSegments: 2 }); g.translate(0, 0, -.06); return g; }
+  if (type === 'rightPrism') { const s = new THREE.Shape(); s.moveTo(-.58, -.44); s.lineTo(.58, -.44); s.lineTo(-.58, .52); s.closePath(); const g = new THREE.ExtrudeGeometry(s, { depth: .5, bevelEnabled: true, bevelThickness: .06, bevelSize: .045, bevelSegments: 2 }); g.translate(0, 0, -.25); return g; }
+  if (type === 'wedge') { const s = new THREE.Shape(); s.moveTo(-.58, -.44); s.lineTo(.58, -.44); s.lineTo(.58, .18); s.lineTo(-.3, .52); s.closePath(); const g = new THREE.ExtrudeGeometry(s, { depth: .5, bevelEnabled: true, bevelThickness: .06, bevelSize: .045, bevelSegments: 2 }); g.translate(0, 0, -.25); return g; }
+  if (type === 'inclinedFrustum') { const v = new Float32Array([-.62,-.45,-.42,.62,-.45,-.42,.62,-.45,.42,-.62,-.45,.42,-.08,.42,-.28,.62,.42,-.28,.62,.42,.28,-.08,.42,.28]); const i = [0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7,4,5,6,4,6,7,3,2,1,3,1,0]; const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(v, 3)); g.setIndex(i); g.computeVertexNormals(); return g; }
+  if (type === 'pyramid') { const g = new THREE.ConeGeometry(.64, 1, 4); g.rotateY(Math.PI / 4); return g; }
+  if (type === 'dome') return new THREE.SphereGeometry(.5, 18, 10, 0, Math.PI * 2, 0, Math.PI * .58);
+  if (type === 'cylinder') return new THREE.CylinderGeometry(.42, .48, .9, 12);
+  if (type === 'cone') return new THREE.ConeGeometry(.5, 1, 6);
+  if (type === 'torus') return new THREE.TorusGeometry(.36, .11, 8, 18);
+  if (type === 'icosahedron') return new THREE.IcosahedronGeometry(.52, 1);
+  if (type === 'octahedron') return new THREE.OctahedronGeometry(.55, 0);
+  if (type === 'capsule') return new THREE.CapsuleGeometry(.28, .62, 6, 12);
+  if (type === 'tetrahedron') { const v = new Float32Array([-.62,-.42,-.3,.62,-.42,-.3,0,-.42,.62,0,.62,0]); const i = [0,2,1,0,1,3,1,2,3,2,0,3]; const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(v, 3)); g.setIndex(i); g.computeVertexNormals(); return g; }
+  if (type === 'tetrahedron90') { const v = new Float32Array([-.62,-.42,-.3,.62,-.42,-.3,0,-.42,.62,.62,.62,-.3]); const i = [0,2,1,0,1,3,1,2,3,2,0,3]; const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(v, 3)); g.setIndex(i); g.computeVertexNormals(); return g; }
+  if (type === 'dodecahedron') return new THREE.DodecahedronGeometry(.52, 0);
+  if (type === 'gear') { const s = new THREE.Shape(); const teeth = 12; for (let i = 0; i < teeth * 2; i += 1) { const a = i * Math.PI / teeth; const r = i % 2 ? .56 : .4; const x = Math.cos(a) * r; const y = Math.sin(a) * r; i ? s.lineTo(x, y) : s.moveTo(x, y); } s.closePath(); const g = new THREE.ExtrudeGeometry(s, { depth: .24, bevelEnabled: true, bevelThickness: .05, bevelSize: .035, bevelSegments: 2 }); g.translate(0, 0, -.12); return g; }
+  return new THREE.SphereGeometry(.5, 16, 10);
+}
+
+function parseMechDefinition(text) {
+  const definition = typeof text === 'string' ? JSON.parse(text) : text;
+  if (!definition || definition.format !== 'metal-warriors-mech' || !Array.isArray(definition.parts)) throw new Error('Definição de mech inválida');
+  return definition;
+}
+
+function buildMechFromDefinition(THREE, definitionOrText, options = {}) {
+  const definition = parseMechDefinition(definitionOrText);
+  const root = new THREE.Group(); root.name = options.name || definition.name || 'CUSTOM_MECH';
+  const meshesById = new Map();
+  definition.parts.forEach((part) => {
+    const geometry = makeGeometry(THREE, part.type);
+    const material = new THREE.MeshStandardMaterial({ color: part.color || DEFAULT_COLORS.red, metalness: .6, roughness: .35 });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = part.name || part.id || part.type;
+    mesh.position.fromArray(part.position || [0, 0, 0]);
+    mesh.rotation.fromArray(part.rotation || [0, 0, 0]);
+    mesh.scale.fromArray(part.scale || [1, 1, 1]);
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    mesh.userData.editorPart = { id: part.id, type: part.type, color: part.color };
+    root.add(mesh); meshesById.set(part.id, mesh);
+  });
+  const groupsById = new Map();
+  (definition.groups || []).forEach((groupDefinition) => {
+    const group = new THREE.Group();
+    group.name = groupDefinition.name || groupDefinition.role || groupDefinition.id || 'MECH_GROUP';
+    group.userData.editorGroup = { id: groupDefinition.id, role: groupDefinition.role || groupDefinition.name, memberIds: [...(groupDefinition.memberIds || [])], sockets: groupDefinition.sockets || {}, adornmentIds: [...(groupDefinition.adornmentIds || [])], humanoidHeight: groupDefinition.humanoidHeight || null };
+    root.add(group); groupsById.set(groupDefinition.id, group);
+    group.userData.editorGroup.memberIds.forEach((id) => { const mesh = meshesById.get(id); if (mesh) group.attach(mesh); });
+  });
+  (definition.groups || []).forEach((groupDefinition) => {
+    const group = groupsById.get(groupDefinition.id);
+    (groupDefinition.adornmentIds || []).forEach((id) => { const child = meshesById.get(id) || groupsById.get(id); if (group && child && child !== group) group.attach(child); });
+  });
+  definition.parts.forEach((part) => {
+    if (!part.parentGroupId) return;
+    const child = meshesById.get(part.id);
+    const parent = meshesById.get(part.parentGroupId) || groupsById.get(part.parentGroupId);
+    if (child && parent && child !== parent) parent.attach(child);
+  });
+  const rt = definition.rootTransform || {};
+  if (Array.isArray(rt.position)) root.position.fromArray(rt.position);
+  if (Array.isArray(rt.rotation)) root.rotation.fromArray(rt.rotation);
+  if (Array.isArray(rt.scale)) root.scale.fromArray(rt.scale);
+  root.userData.mechDefinition = definition;
+  root.userData.source = 'Metal Warriors Mech Editor';
+  return root;
+}
+
+function attachJointPivots(root) {
+  root.updateMatrixWorld(true);
+  const joints = {};
+  const shoulderPositions = {};
+  const cylRight = root.getObjectByName('Cilindro 45');
+  const cylLeft = root.getObjectByName('Cilindro 45 cópia');
+
+  const targetGroups = [];
+  root.traverse((o) => {
+    if (o.isGroup && o.userData.editorGroup) targetGroups.push(o);
+  });
+
+  targetGroups.forEach((o) => {
+    const n = o.name.toUpperCase();
+    const box = new THREE.Box3().setFromObject(o);
+    if (box.isEmpty()) return;
+
+    let pivotWorld;
+    if (/BRACO/.test(n)) {
+      const cyl = n.includes('DIR') ? cylRight : cylLeft;
+      if (cyl) {
+        pivotWorld = new THREE.Vector3();
+        cyl.getWorldPosition(pivotWorld);
+      } else {
+        pivotWorld = new THREE.Vector3((box.min.x + box.max.x) * 0.5, box.max.y - 0.15, (box.min.z + box.max.z) * 0.5);
+      }
+      shoulderPositions[n] = pivotWorld.clone();
+    } else if (/PERNA/.test(n)) {
+      pivotWorld = new THREE.Vector3((box.min.x + box.max.x) * 0.5, box.max.y - 0.04, (box.min.z + box.max.z) * 0.5);
+    } else if (/TORSO/.test(n)) {
+      pivotWorld = new THREE.Vector3((box.min.x + box.max.x) * 0.5, box.min.y + 0.12, (box.min.z + box.max.z) * 0.5);
+    } else {
+      return;
+    }
+
+    const parent = o.parent;
+    const pivotLocal = parent.worldToLocal(pivotWorld.clone());
+    const pivot = new THREE.Group();
+    pivot.name = n + '_PIVOT';
+    pivot.position.copy(pivotLocal);
+    parent.add(pivot);
+    pivot.attach(o);
+    joints[n] = pivot;
+
+    if (/PERNA/.test(n) || /BRACO/.test(n)) {
+      root.updateMatrixWorld(true);
+      const subBox = new THREE.Box3().setFromObject(o);
+      const jointY = /PERNA/.test(n)
+        ? subBox.min.y + (subBox.max.y - subBox.min.y) * 0.46
+        : subBox.min.y + (subBox.max.y - subBox.min.y) * 0.45;
+      const jointWorld = new THREE.Vector3((subBox.min.x + subBox.max.x) * 0.5, jointY, (subBox.min.z + subBox.max.z) * 0.5);
+      const jointLocal = o.worldToLocal(jointWorld.clone());
+
+      const lowerParts = [];
+      o.traverse((child) => {
+        if (!child.isMesh) return;
+        const wp = new THREE.Vector3();
+        child.getWorldPosition(wp);
+        if (wp.y < jointY) lowerParts.push(child);
+      });
+
+      if (lowerParts.length > 0) {
+        const subPivot = new THREE.Group();
+        subPivot.name = (/PERNA/.test(n) ? 'JOELHO_' : 'ANTEBRACO_') + n;
+        subPivot.position.copy(jointLocal);
+        o.add(subPivot);
+        lowerParts.forEach((m) => subPivot.attach(m));
+        joints[subPivot.name] = subPivot;
+      }
+    }
+  });
+
+  root.userData.joints = joints;
+  root.userData.shoulderPositions = shoulderPositions;
+}
+
+function createHumanoidUnit(role = 'pilot') {
+  const unitGroup = new THREE.Group();
+  unitGroup.name = 'HUMANO_' + role.toUpperCase();
+
+  const canFly = role === 'pilot' || role === 'ai_pilot';
+  const suitHex = role === 'pilot' ? 0xf59e0b
+    : role === 'ai_pilot' ? 0x06b6d4
+    : role === 'scientist' ? 0xe2e8f0
+    : role === 'soldier' ? 0x475569
+    : 0x94a3b8;
+  const accentHex = role === 'pilot' ? 0x38bdf8
+    : role === 'ai_pilot' ? 0xfbbf24
+    : role === 'scientist' ? 0x10b981
+    : role === 'soldier' ? 0xef4444
+    : 0x60a5fa;
+
+  const suitMat = new THREE.MeshStandardMaterial({ color: suitHex, metalness: 0.3, roughness: 0.45 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.5, roughness: 0.5 });
+  const accentMat = new THREE.MeshStandardMaterial({ color: accentHex, emissive: accentHex, emissiveIntensity: 0.25, metalness: 0.6, roughness: 0.3 });
+
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.18, 0.1), suitMat);
+  torso.position.y = 0.22;
+  torso.castShadow = true;
+
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.11, 0.11), suitMat);
+  head.position.y = 0.37;
+  head.castShadow = true;
+
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.045, 0.04), accentMat);
+  visor.position.set(0, 0.37, 0.05);
+
+  const legPivotL = new THREE.Group();
+  legPivotL.position.set(-0.038, 0.13, 0);
+  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.13, 0.05), darkMat);
+  legL.position.y = -0.065;
+  legL.castShadow = true;
+  legPivotL.add(legL);
+
+  const legPivotR = new THREE.Group();
+  legPivotR.position.set(0.038, 0.13, 0);
+  const legR = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.13, 0.05), darkMat);
+  legR.position.y = -0.065;
+  legR.castShadow = true;
+  legPivotR.add(legR);
+
+  const armPivotL = new THREE.Group();
+  armPivotL.position.set(-0.095, 0.29, 0);
+  const armL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, 0.045), suitMat);
+  armL.position.y = -0.05;
+  armPivotL.add(armL);
+
+  const armPivotR = new THREE.Group();
+  armPivotR.position.set(0.095, 0.29, 0);
+  const armR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, 0.045), suitMat);
+  armR.position.y = -0.05;
+  armPivotR.add(armR);
+
+  unitGroup.add(torso, head, visor, legPivotL, legPivotR, armPivotL, armPivotR);
+
+  if (canFly) {
+    const jetpack = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.13, 0.06), darkMat);
+    jetpack.position.set(0, 0.24, -0.075);
+    jetpack.castShadow = true;
+    unitGroup.add(jetpack);
+  }
+
+  unitGroup.userData.limbs = { legPivotL, legPivotR, armPivotL, armPivotR };
+  unitGroup.userData.role = role;
+  unitGroup.userData.canFly = canFly;
+  unitGroup.userData.hp = 10;
+  unitGroup.userData.maxHp = 10;
+  unitGroup.userData.dead = false;
+  return unitGroup;
+}
+
+function spawnRedMassAt(x, y) {
+  const massGroup = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.75, metalness: 0.05 });
+
+  const baseSplatter = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, 0.02, 10), mat);
+  baseSplatter.position.y = 0.015;
+  baseSplatter.receiveShadow = true;
+
+  const lump1 = new THREE.Mesh(new THREE.SphereGeometry(0.055, 7, 6), mat);
+  lump1.scale.set(1.2, 0.45, 1.0);
+  lump1.position.set(-0.03, 0.025, 0.02);
+
+  const lump2 = new THREE.Mesh(new THREE.SphereGeometry(0.042, 7, 6), mat);
+  lump2.scale.set(1.0, 0.4, 1.2);
+  lump2.position.set(0.04, 0.022, -0.025);
+
+  massGroup.add(baseSplatter, lump1, lump2);
+  massGroup.position.set(x, y, 0);
+  scene.add(massGroup);
+  goreMasses.push(massGroup);
+}
+
+function createExplosiveBarrel(x, y = 0.22) {
+  const grp = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.22, 0.22, 0.56, 12),
+    new THREE.MeshStandardMaterial({ color: 0xdc2626, metalness: 0.45, roughness: 0.4 })
+  );
+  body.position.y = 0.28;
+  body.castShadow = true;
+  body.receiveShadow = true;
+
+  const band = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.226, 0.226, 0.1, 12),
+    new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0x78350f, emissiveIntensity: 0.35 })
+  );
+  band.position.y = 0.28;
+
+  grp.add(body, band);
+  grp.position.set(x, y, 0);
+  grp.userData.hp = 10;
+  grp.userData.exploded = false;
+  return grp;
+}
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x070a10);
+scene.fog = new THREE.Fog(0x070a10, 16, 48);
+
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, .1, 100);
+camera.position.set(0, 3.2, 13);
+camera.lookAt(0, 2.0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xd8dee9, 0x10131a, 1.75));
+const key = new THREE.DirectionalLight(0xffe4bf, 3.2);
+key.position.set(-5, 12, 8);
+key.castShadow = true;
+scene.add(key);
+const rim = new THREE.PointLight(0xf59e0b, 35, 22, 2);
+rim.position.set(2, 5, -3);
+scene.add(rim);
+
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 20), new THREE.MeshStandardMaterial({ color: 0x111722, metalness: .65, roughness: .42 }));
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+const floorGrid = new THREE.GridHelper(100, 100, 0x344052, 0x1b2432);
+floorGrid.position.y = .01;
+scene.add(floorGrid);
+
+const bg = new THREE.Mesh(new THREE.PlaneGeometry(100, 18), new THREE.MeshBasicMaterial({ color: 0x0d1420 }));
+bg.position.set(0, 7, -6);
+scene.add(bg);
+
+const arenaLine = new THREE.Mesh(new THREE.BoxGeometry(100, .035, .08), new THREE.MeshBasicMaterial({ color: 0xf59e0b }));
+arenaLine.position.set(0, .03, .2);
+scene.add(arenaLine);
+
+const platforms = [];
+const platformDefs = [
+  { x: -2.2, y: 1.65, z: 0, w: 3.6, h: 0.28, d: 2.2 },
+  { x: 1.8,  y: 2.95, z: 0, w: 3.8, h: 0.28, d: 2.2 },
+  { x: 6.0,  y: 2.15, z: 0, w: 3.6, h: 0.28, d: 2.2 },
+  { x: 10.2, y: 3.65, z: 0, w: 4.0, h: 0.28, d: 2.4 },
+  { x: -7.2, y: 2.35, z: 0, w: 3.4, h: 0.28, d: 2.2 }
+];
+const platMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: .72, roughness: .35 });
+const trimMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0x6b3504, emissiveIntensity: .35, metalness: .5, roughness: .3 });
+
+platformDefs.forEach((pd) => {
+  const grp = new THREE.Group();
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(pd.w, pd.h, pd.d), platMat);
+  deck.castShadow = true;
+  deck.receiveShadow = true;
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(pd.w + 0.04, 0.06, pd.d + 0.04), trimMat);
+  stripe.position.y = pd.h * 0.5;
+  const strutL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, pd.y + 0.5, 8), platMat);
+  strutL.position.set(-pd.w * 0.35, -(pd.y + 0.5) * 0.5, -pd.d * 0.3);
+  const strutR = strutL.clone();
+  strutR.position.x = pd.w * 0.35;
+  grp.add(deck, stripe, strutL, strutR);
+  grp.position.set(pd.x, pd.y, pd.z);
+  scene.add(grp);
+  platforms.push({
+    x: pd.x,
+    topY: pd.y + pd.h * 0.5,
+    halfW: pd.w * 0.5 + 0.35
+  });
+});
+
+const status = document.querySelector('#status');
+const fsBtn = document.querySelector('#fs-btn');
+let player, definition, pilotMesh;
+const shots = [], debris = [], smoke = [], sparks = [], thrusterFlames = [], enemies = [], derelictMechs = [], humans = [], barrels = [], goreMasses = [];
+const input = { left: false, right: false, up: false, down: false, jumpHold: false, fireHold: false };
+
+const INITIAL_DOWN_AIM = 0;
+let facing = 1, aimDeg = INITIAL_DOWN_AIM, velocityX = 0, velocityY = 0, elapsed = 0, lastShot = 0, grounded = true;
+let hp = 100, dead = false, armsDisabled = false, smokeClock = 0, stepClock = 0, gameOver = false;
+
+let pilotMode = false;
+let pilotHp = 10;
+let pilotDead = false;
+let pilotPos = new THREE.Vector3(-4, 0.22, 0);
+let pilotVel = new THREE.Vector3(0, 0, 0);
+let pilotGrounded = true;
+let pilotFacing = 1;
+let pilotStepClock = 0;
+
+function applyTeamPalette(mechRoot, palette = 'red') {
+  const targetHex = palette === 'neutral' ? 0x6b7280
+    : palette === 'blue' ? 0x315b83
+    : 0xc83228;
+  mechRoot.traverse((o) => {
+    if (o.isMesh && o.material?.color) {
+      const origHex = o.userData.editorPart?.color;
+      if (origHex && origHex.toLowerCase() === '#c83228') {
+        o.userData.baseColor = new THREE.Color(targetHex);
+        o.material.color.set(targetHex);
+      }
+    }
+  });
+}
+
+function colorEnemy(root) {
+  root.traverse((o) => {
+    if (o.isMesh && o.material?.color) {
+      const c = o.material.color;
+      if (c.r > .55 && c.g < .35 && c.b < .35) {
+        o.userData.baseColor = new THREE.Color(0x315b83);
+        c.set(0x315b83);
+      } else if (c.r < .08 && c.g < .08 && c.b < .08) {
+        o.userData.baseColor = new THREE.Color(0x111827);
+        o.material.color.set(0x111827);
+      }
+    }
+  });
+}
+
+function setMechShrunkPose(mechRoot, shrunk) {
+  const joints = mechRoot.userData.joints || {};
+  mechRoot.userData.abandoned = shrunk;
+  if (shrunk) {
+    mechRoot.scale.set(0.88, 0.82, 0.88);
+    if (joints.TORSO) joints.TORSO.rotation.x = 0.34;
+    if (joints.PERNA_DIR) joints.PERNA_DIR.rotation.x = -0.55;
+    if (joints.JOELHO_PERNA_DIR) joints.JOELHO_PERNA_DIR.rotation.x = 0.95;
+    if (joints.PERNA_ESQ) joints.PERNA_ESQ.rotation.x = -0.45;
+    if (joints.JOELHO_PERNA_ESQ) joints.JOELHO_PERNA_ESQ.rotation.x = 0.85;
+    if (joints.BRACO_DIR) { joints.BRACO_DIR.rotation.x = 0.35; joints.BRACO_DIR.rotation.z = 0.25; }
+    if (joints.ANTEBRACO_BRACO_DIR) joints.ANTEBRACO_BRACO_DIR.rotation.x = 0.55;
+    if (joints.BRACO_ESQ) { joints.BRACO_ESQ.rotation.x = 0.35; joints.BRACO_ESQ.rotation.z = -0.25; }
+    if (joints.ANTEBRACO_BRACO_ESQ) joints.ANTEBRACO_BRACO_DIR.rotation.x = 0.55;
+  } else {
+    mechRoot.scale.set(1.02, 1.02, 1.02);
+    if (joints.TORSO) joints.TORSO.rotation.x = 0.04;
+    if (joints.JOELHO_PERNA_DIR) joints.JOELHO_PERNA_DIR.rotation.x = 0;
+    if (joints.JOELHO_PERNA_ESQ) joints.JOELHO_PERNA_ESQ.rotation.x = 0;
+    if (joints.BRACO_DIR) { joints.BRACO_DIR.rotation.z = 0; }
+    if (joints.BRACO_ESQ) { joints.BRACO_ESQ.rotation.z = 0; }
+  }
+}
+
+function makeDerelictMech(x, y = .22, dirSign = -1, mechHp = 100) {
+  const derelict = buildMechFromDefinition(THREE, definition, { name: 'DERELICT-NEUTRAL' });
+  attachJointPivots(derelict);
+  derelict.position.set(x, y, 0);
+  derelict.rotation.y = dirSign === 1 ? Math.PI / 2 : -Math.PI / 2;
+  derelict.userData.baseY = y;
+  derelict.userData.velY = 0;
+  derelict.userData.grounded = true;
+  derelict.userData.abandoned = true;
+  derelict.userData.hp = mechHp;
+  derelict.userData.maxHp = mechHp;
+  derelict.userData.dead = false;
+  derelict.userData.armsDisabled = false;
+  derelict.userData.smokeClock = 0;
+  derelict.userData.sparkClock = 0;
+  derelict.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  applyTeamPalette(derelict, 'neutral');
+  setMechShrunkPose(derelict, true);
+  scene.add(derelict);
+  derelictMechs.push(derelict);
+  return derelict;
+}
+
+function makeHumanUnit(role, x, y = 0.22, dirSign = -1) {
+  const unit = createHumanoidUnit(role);
+  unit.position.set(x, y, 0);
+  unit.rotation.y = dirSign === 1 ? Math.PI / 2 : -Math.PI / 2;
+  unit.userData.facing = dirSign;
+  unit.userData.velY = 0;
+  unit.userData.grounded = true;
+  unit.userData.hp = 10;
+  unit.userData.maxHp = 10;
+  unit.userData.dead = false;
+  unit.userData.fireClock = 1.0 + Math.random() * 1.2;
+  unit.userData.jetClock = 0;
+  unit.userData.phase = Math.random() * 6;
+  scene.add(unit);
+  humans.push(unit);
+  return unit;
+}
+
+function makeBarrel(x, y = 0.22) {
+  const b = createExplosiveBarrel(x, y);
+  scene.add(b);
+  barrels.push(b);
+  return b;
+}
+
+function makeEnemy(x, y = .22) {
+  const enemy = buildMechFromDefinition(THREE, definition, { name: 'ENEMY-BLUE' });
+  attachJointPivots(enemy);
+  enemy.position.set(x, y, 0);
+  enemy.rotation.y = -Math.PI / 2;
+  colorEnemy(enemy);
+  enemy.userData.hp = 100;
+  enemy.userData.maxHp = 100;
+  enemy.userData.dead = false;
+  enemy.userData.armsDisabled = false;
+  enemy.userData.baseY = y;
+  enemy.userData.velY = 0;
+  enemy.userData.grounded = true;
+  enemy.userData.facing = -1;
+  enemy.userData.phase = Math.random() * 6;
+  enemy.userData.smokeClock = 0;
+  enemy.userData.sparkClock = 0;
+  enemy.userData.fireClock = 0.8 + Math.random() * 1.1;
+  enemy.userData.jumpCooldown = 0;
+  enemy.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  scene.add(enemy);
+  enemies.push(enemy);
+  return enemy;
+}
+
+function setArmPitchTowardAim(armPivot, forearmPivot, aimAngleRad, swingOffset) {
+  if (!armPivot || !armPivot.visible) return;
+  const targetPitch = -Math.PI * 0.5 - aimAngleRad + swingOffset;
+  armPivot.rotation.x += (targetPitch - armPivot.rotation.x) * 0.9;
+  armPivot.rotation.z = 0;
+
+  if (forearmPivot) {
+    const targetFlex = -0.05 - aimAngleRad * 0.14;
+    forearmPivot.rotation.x += (targetFlex - forearmPivot.rotation.x) * 0.9;
+  }
+}
+
+function animateRig(root, t, walking, aimAngleRad = 0, isFlying = false, thrustActive = false, armsBroken = false) {
+  if (root.userData.abandoned || root.userData.dead) return;
+  const joints = root.userData.joints || {};
+  const phase = root.userData.phase || 0;
+  const base = root.userData.baseY ?? .22;
+  const cycle = t * 10.5 + phase;
+
+  if (!isFlying) {
+    root.position.y = base - (walking ? Math.abs(Math.sin(cycle)) * 0.035 : 0);
+  } else {
+    const hover = thrustActive ? Math.sin(t * 24 + phase) * 0.018 : Math.sin(t * 5 + phase) * 0.012;
+    root.position.y = base + hover;
+  }
+
+  const swing = walking ? Math.sin(cycle) * 0.45 : 0;
+  const stepLift = walking ? Math.max(0, Math.cos(cycle)) * 0.045 : 0;
+  const kneeRight = walking ? Math.max(0, Math.cos(cycle)) * 0.52 : (isFlying ? 0.35 : 0);
+  const kneeLeft = walking ? Math.max(0, -Math.cos(cycle)) * 0.52 : (isFlying ? 0.25 : 0);
+
+  if (joints.PERNA_DIR) {
+    joints.PERNA_DIR.userData.baseY ??= joints.PERNA_DIR.position.y;
+    if (isFlying) {
+      joints.PERNA_DIR.position.y = joints.PERNA_DIR.userData.baseY + 0.05;
+      joints.PERNA_DIR.rotation.x = -0.38 + (thrustActive ? Math.sin(t * 18) * 0.05 : 0);
+    } else {
+      joints.PERNA_DIR.position.y = joints.PERNA_DIR.userData.baseY + stepLift;
+      joints.PERNA_DIR.rotation.x = swing;
+    }
+  }
+  if (joints.JOELHO_PERNA_DIR) {
+    joints.JOELHO_PERNA_DIR.rotation.x += (kneeRight - joints.JOELHO_PERNA_DIR.rotation.x) * 0.42;
+  }
+
+  if (joints.PERNA_ESQ) {
+    joints.PERNA_ESQ.userData.baseY ??= joints.PERNA_ESQ.position.y;
+    if (isFlying) {
+      joints.PERNA_ESQ.position.y = joints.PERNA_ESQ.userData.baseY + 0.03;
+      joints.PERNA_ESQ.rotation.x = -0.22 - (thrustActive ? Math.sin(t * 18) * 0.05 : 0);
+    } else {
+      joints.PERNA_ESQ.position.y = joints.PERNA_ESQ.userData.baseY + (walking ? Math.max(0, -Math.cos(cycle)) * 0.045 : 0);
+      joints.PERNA_ESQ.rotation.x = -swing;
+    }
+  }
+  if (joints.JOELHO_PERNA_ESQ) {
+    joints.JOELHO_PERNA_ESQ.rotation.x += (kneeLeft - joints.JOELHO_PERNA_ESQ.rotation.x) * 0.42;
+  }
+
+  if (joints.TORSO) {
+    const targetTilt = isFlying ? (thrustActive ? 0.16 : 0.08) : (walking ? 0.12 : 0.03);
+    joints.TORSO.rotation.x += (targetTilt - joints.TORSO.rotation.x) * 0.4;
+  }
+
+  if (!armsBroken) {
+    const armSwing = walking ? Math.sin(cycle * 1.25) * 0.06 : 0;
+    setArmPitchTowardAim(joints.BRACO_DIR, joints.ANTEBRACO_BRACO_DIR, aimAngleRad, armSwing);
+    setArmPitchTowardAim(joints.BRACO_ESQ, joints.ANTEBRACO_BRACO_ESQ, aimAngleRad, -armSwing);
+  }
+}
+
+function animateHumanoid(unit, t, moving, flying) {
+  if (!unit || !unit.visible || unit.userData.dead) return;
+  const limbs = unit.userData.limbs;
+  if (!limbs) return;
+  if (flying) {
+    limbs.legPivotL.rotation.x = -0.45 + Math.sin(t * 14) * 0.12;
+    limbs.legPivotR.rotation.x = -0.25 - Math.sin(t * 14) * 0.12;
+    limbs.armPivotL.rotation.x = -0.6;
+    limbs.armPivotR.rotation.x = -0.6;
+  } else if (moving) {
+    const s = Math.sin(t * 18) * 0.7;
+    limbs.legPivotL.rotation.x = s;
+    limbs.legPivotR.rotation.x = -s;
+    limbs.armPivotL.rotation.x = -s * 0.8;
+    limbs.armPivotR.rotation.x = s * 0.8;
+  } else {
+    limbs.legPivotL.rotation.x *= 0.75;
+    limbs.legPivotR.rotation.x *= 0.75;
+    limbs.armPivotL.rotation.x *= 0.75;
+    limbs.armPivotR.rotation.x *= 0.75;
+  }
+}
+
+function spawnPilotJetpackFlame(pos, dirSign, playSound = true) {
+  if (playSound) SFX.thruster();
+  const backX = pos.x - dirSign * 0.085;
+  const backY = pos.y + 0.18;
+
+  for (let i = 0; i < 2; i++) {
+    const flame = new THREE.Mesh(
+      new THREE.ConeGeometry(0.032 + Math.random() * 0.015, 0.11 + Math.random() * 0.05, 6),
+      new THREE.MeshBasicMaterial({
+        color: i === 0 ? 0xff9f1c : 0xfff3b0,
+        transparent: true,
+        opacity: 0.95
+      })
+    );
+    flame.position.set(
+      backX + (Math.random() - 0.5) * 0.03,
+      backY + (Math.random() - 0.5) * 0.04,
+      (Math.random() - 0.5) * 0.06
+    );
+    flame.rotation.z = dirSign === 1 ? Math.PI * 0.25 : -Math.PI * 0.25;
+    flame.userData.life = 0.08 + Math.random() * 0.04;
+    flame.userData.vel = new THREE.Vector3(
+      -dirSign * (0.8 + Math.random() * 0.5),
+      -1.8 - Math.random() * 0.9,
+      (Math.random() - 0.5) * 0.3
+    );
+    scene.add(flame);
+    thrusterFlames.push(flame);
+  }
+}
+
+function spawnThrusterFlame(mechRoot, dirSign) {
+  if (!mechRoot || !mechRoot.visible || mechRoot.userData.abandoned || mechRoot.userData.dead) return;
+  SFX.thruster();
+  const backX = mechRoot.position.x - dirSign * 0.38;
+  const backY = mechRoot.position.y + 1.85;
+
+  for (let i = 0; i < 2; i++) {
+    const flame = new THREE.Mesh(
+      new THREE.ConeGeometry(0.11 + Math.random() * 0.05, 0.36 + Math.random() * 0.14, 7),
+      new THREE.MeshBasicMaterial({
+        color: i === 0 ? 0xff9f1c : 0xfff3b0,
+        transparent: true,
+        opacity: 0.92
+      })
+    );
+    flame.position.set(
+      backX + (Math.random() - 0.5) * 0.12,
+      backY + (Math.random() - 0.5) * 0.14,
+      (Math.random() - 0.5) * 0.25
+    );
+    flame.rotation.z = dirSign === 1 ? Math.PI * 0.35 : -Math.PI * 0.35;
+    flame.userData.life = 0.09 + Math.random() * 0.06;
+    flame.userData.vel = new THREE.Vector3(
+      -dirSign * (2.2 + Math.random() * 1.4),
+      -3.8 - Math.random() * 2.2,
+      (Math.random() - 0.5) * 0.8
+    );
+    scene.add(flame);
+    thrusterFlames.push(flame);
+  }
+}
+
+function togglePilotEjectOrEnter() {
+  if (gameOver || pilotDead || !player) return;
+
+  if (!pilotMode) {
+    if (dead || player.userData.dead) return;
+    SFX.eject();
+    pilotMode = true;
+    aimDeg = INITIAL_DOWN_AIM;
+    velocityX = 0;
+    velocityY = 0;
+    pilotFacing = facing;
+    pilotPos.set(player.position.x + facing * 0.35, player.position.y + 2.35, 0);
+    pilotVel.set(facing * 2.6, 4.4, 0);
+    pilotGrounded = false;
+    if (pilotMesh) {
+      pilotMesh.visible = true;
+      pilotMesh.position.copy(pilotPos);
+      pilotMesh.rotation.y = pilotFacing === 1 ? Math.PI / 2 : -Math.PI / 2;
+    }
+    applyTeamPalette(player, 'neutral');
+    setMechShrunkPose(player, true);
+    status.textContent = `PILOTO (${pilotHp}/10 HP) · MIRA ${aimDeg}°`;
+    return;
+  }
+
+  const candidates = [player, ...derelictMechs].filter((m) => m && m.visible && !m.userData.dead);
+  let nearest = null;
+  let bestDist = 2.4;
+
+  for (const m of candidates) {
+    const dx = m.position.x - pilotPos.x;
+    const dy = (m.position.y + 1.0) - pilotPos.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < bestDist) {
+      bestDist = dist;
+      nearest = m;
+    }
+  }
+
+  if (nearest) {
+    SFX.enterMech();
+    if (nearest !== player && !player.userData.dead && !derelictMechs.includes(player)) {
+      derelictMechs.push(player);
+    }
+    const idxInDerelict = derelictMechs.indexOf(nearest);
+    if (idxInDerelict !== -1) derelictMechs.splice(idxInDerelict, 1);
+
+    player = nearest;
+    hp = player.userData.hp ?? 100;
+    dead = !!player.userData.dead;
+    armsDisabled = !!player.userData.armsDisabled;
+    pilotMode = false;
+    aimDeg = INITIAL_DOWN_AIM;
+    if (pilotMesh) pilotMesh.visible = false;
+    velocityX = 0;
+    velocityY = 0;
+    grounded = true;
+    applyTeamPalette(player, 'red');
+    setMechShrunkPose(player, false);
+    status.textContent = `PILOTO EMBARCOU · MECH ${Math.round(hp)}% HP`;
+  } else {
+    status.textContent = 'APROXIME-SE DE UM ROBÔ PARA EMBARCAR';
+  }
+}
+
+function defeat(msg = 'A arena foi perdida.') {
+  if (gameOver) return;
+  gameOver = true;
+  input.fireHold = false;
+  const p = document.querySelector('#gameover p');
+  if (p) p.textContent = msg;
+  document.querySelector('#gameover').classList.add('show');
+  status.textContent = 'DERROTA';
+}
+
+function spawnImpactSparks(hitPos, colorHex = 0xffb703, count = 8) {
+  SFX.hitSpark();
+  for (let i = 0; i < count; i++) {
+    const sp = new THREE.Mesh(
+      new THREE.BoxGeometry(0.045, 0.045, 0.045),
+      new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? colorHex : 0xfff3b0 })
+    );
+    sp.position.copy(hitPos);
+    sp.userData.life = 0.2 + Math.random() * 0.2;
+    sp.userData.vel = new THREE.Vector3(
+      (Math.random() - 0.5) * 6.5,
+      1.0 + Math.random() * 4.5,
+      (Math.random() - 0.5) * 4.5
+    );
+    scene.add(sp);
+    sparks.push(sp);
+  }
+}
+
+function killHumansInBlastRadius(blastCenter, radius = 3.2, causeLabel = 'EXPLOSÃO') {
+  for (const unit of humans) {
+    if (!unit || unit.userData.dead || !unit.visible) continue;
+    const uPos = unit.position.clone().add(new THREE.Vector3(0, 0.22, 0));
+    if (uPos.distanceTo(blastCenter) <= radius) {
+      damageHumanoid(unit, 10, causeLabel);
+    }
+  }
+  if (pilotMode && !pilotDead) {
+    const pCenter = pilotPos.clone().add(new THREE.Vector3(0, 0.22, 0));
+    if (pCenter.distanceTo(blastCenter) <= radius) {
+      damagePilot(10, causeLabel);
+    }
+  }
+}
+
+function explodeBarrel(barrel) {
+  if (!barrel || barrel.userData.exploded) return;
+  barrel.userData.exploded = true;
+  barrel.visible = false;
+  SFX.explosion();
+  const center = barrel.position.clone().add(new THREE.Vector3(0, 0.3, 0));
+  spawnImpactSparks(center, 0xff6b00, 18);
+
+  for (let i = 0; i < 8; i++) {
+    const sm = new THREE.Mesh(
+      new THREE.SphereGeometry(0.16 + Math.random() * 0.14, 7, 6),
+      new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.8 })
+    );
+    sm.position.copy(center).add(new THREE.Vector3((Math.random() - 0.5) * 0.5, Math.random() * 0.4, 0));
+    sm.userData.life = 1.0 + Math.random() * 0.6;
+    sm.userData.vel = new THREE.Vector3((Math.random() - 0.5) * 2.2, 1.5 + Math.random() * 2.0, (Math.random() - 0.5) * 1.2);
+    scene.add(sm);
+    smoke.push(sm);
+  }
+
+  killHumansInBlastRadius(center, 3.4, 'TAMBOR EXPLODIU');
+  status.textContent = 'TAMBOR EXPLODIU!';
+}
+
+function segmentHitsRobot(p0, p1, robotRoot, radius = 0.95) {
+  if (!robotRoot || !robotRoot.visible || robotRoot.userData.dead) return null;
+  const center = new THREE.Vector3(robotRoot.position.x, robotRoot.position.y + 1.45, robotRoot.position.z);
+  const seg = p1.clone().sub(p0);
+  const lenSq = seg.lengthSq();
+  let t = 0;
+  if (lenSq > 1e-6) {
+    t = Math.max(0, Math.min(1, center.clone().sub(p0).dot(seg) / lenSq));
+  }
+  const closest = p0.clone().addScaledVector(seg, t);
+  const dx = closest.x - center.x;
+  const dy = (closest.y - center.y) * 0.95;
+  const dz = closest.z - center.z;
+  if (dx * dx + dy * dy + dz * dz <= radius * radius) {
+    return closest;
+  }
+  return null;
+}
+
+function segmentHitsHumanoid(p0, p1, unit, radius = 0.34) {
+  if (!unit || !unit.visible || unit.userData.dead) return null;
+  const center = new THREE.Vector3(unit.position.x, unit.position.y + 0.24, unit.position.z);
+  const seg = p1.clone().sub(p0);
+  const lenSq = seg.lengthSq();
+  let t = 0;
+  if (lenSq > 1e-6) {
+    t = Math.max(0, Math.min(1, center.clone().sub(p0).dot(seg) / lenSq));
+  }
+  const closest = p0.clone().addScaledVector(seg, t);
+  return closest.distanceToSquared(center) <= radius * radius ? closest : null;
+}
+
+function segmentHitsBarrel(p0, p1, barrel, radius = 0.34) {
+  if (!barrel || !barrel.visible || barrel.userData.exploded) return null;
+  const center = new THREE.Vector3(barrel.position.x, barrel.position.y + 0.28, barrel.position.z);
+  const seg = p1.clone().sub(p0);
+  const lenSq = seg.lengthSq();
+  let t = 0;
+  if (lenSq > 1e-6) {
+    t = Math.max(0, Math.min(1, center.clone().sub(p0).dot(seg) / lenSq));
+  }
+  const closest = p0.clone().addScaledVector(seg, t);
+  return closest.distanceToSquared(center) <= radius * radius ? closest : null;
+}
+
+function getAimVector(dirSign, degAngle) {
+  const rad = degAngle * Math.PI / 180;
+  return new THREE.Vector3(dirSign * Math.cos(rad), Math.sin(rad), 0).normalize();
+}
+
+function getWeaponMuzzlePosition(mechRoot, dirSign, degAngle) {
+  const joints = mechRoot.userData.joints || {};
+  const arm = joints.BRACO_DIR || joints.BRACO_ESQ;
+  mechRoot.updateMatrixWorld(true);
+  const dir = getAimVector(dirSign, degAngle);
+
+  if (arm && arm.visible) {
+    const shoulder = new THREE.Vector3();
+    arm.getWorldPosition(shoulder);
+    shoulder.addScaledVector(dir, 1.08);
+    shoulder.z = 0;
+    return shoulder;
+  }
+  return new THREE.Vector3(mechRoot.position.x + dirSign * 1.15, mechRoot.position.y + 1.95, 0);
+}
+
+function createShot() {
+  if (pilotMode && !pilotDead) {
+    SFX.shootPilot();
+    const dir = getAimVector(pilotFacing, aimDeg);
+    const origin = new THREE.Vector3(pilotPos.x + pilotFacing * 0.24, pilotPos.y + 0.29, 0).addScaledVector(dir, 0.14);
+    const shot = new THREE.Mesh(new THREE.SphereGeometry(.04, 8, 6), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+    shot.position.copy(origin);
+    shot.userData.vel = dir.clone().multiplyScalar(12);
+    shot.userData.life = 1.6;
+    shot.userData.owner = 'pilot';
+    shot.userData.damage = 1;
+    scene.add(shot);
+    shots.push(shot);
+    return;
+  }
+
+  if (!player || dead || player.userData.abandoned || player.userData.dead) return;
+  SFX.shootPlayer();
+  const dir = getAimVector(facing, aimDeg);
+  const origin = getWeaponMuzzlePosition(player, facing, aimDeg).addScaledVector(dir, 0.14);
+
+  const shot = new THREE.Mesh(new THREE.SphereGeometry(.11, 10, 8), new THREE.MeshBasicMaterial({ color: 0xfbbf24 }));
+  shot.position.copy(origin);
+  shot.userData.vel = dir.clone().multiplyScalar(15);
+  shot.userData.life = 2.2;
+  shot.userData.owner = 'player';
+  shot.userData.damage = 20;
+  scene.add(shot);
+  shots.push(shot);
+}
+
+function enemyFire(enemy) {
+  if (dead || enemy.userData.dead || enemy.userData.armsDisabled) return;
+
+  const nearbyHuman = humans.find((u) => !u.userData.dead && u.visible && Math.abs(u.position.x - enemy.position.x) < 6.5 && Math.abs(u.position.y - enemy.position.y) < 1.2);
+  let targetPos = null;
+  if (nearbyHuman) {
+    targetPos = new THREE.Vector3(nearbyHuman.position.x, nearbyHuman.position.y + 0.24, 0);
+  } else if (pilotMode && !pilotDead) {
+    targetPos = new THREE.Vector3(pilotPos.x, pilotPos.y + 0.25, 0);
+  } else if (player && !player.userData.abandoned && !player.userData.dead) {
+    targetPos = new THREE.Vector3(player.position.x, player.position.y + 1.85, 0);
+  }
+  if (!targetPos) return;
+
+  SFX.shootEnemy();
+  const dirSign = enemy.userData.facing || -1;
+  const origin = getWeaponMuzzlePosition(enemy, dirSign, 0);
+  const dir = targetPos.sub(origin).normalize();
+  const shot = new THREE.Mesh(new THREE.SphereGeometry(.09, 8, 6), new THREE.MeshBasicMaterial({ color: 0x60a5fa }));
+  shot.position.copy(origin);
+  shot.userData.vel = dir.multiplyScalar(7.5);
+  shot.userData.life = 3;
+  shot.userData.owner = 'enemy';
+  shot.userData.damage = 12;
+  scene.add(shot);
+  shots.push(shot);
+}
+
+function humanFire(unit, targetPoint) {
+  if (unit.userData.dead || unit.userData.role === 'scientist' || unit.userData.role === 'human') return;
+  SFX.shootPilot();
+  const dirSign = unit.userData.facing || -1;
+  const origin = new THREE.Vector3(unit.position.x + dirSign * 0.22, unit.position.y + 0.28, 0);
+  const aimTarget = targetPoint.clone();
+  aimTarget.y += 0.22;
+  const dir = aimTarget.sub(origin).normalize();
+  const shot = new THREE.Mesh(new THREE.SphereGeometry(.038, 6, 6), new THREE.MeshBasicMaterial({ color: 0xf87171 }));
+  shot.position.copy(origin);
+  shot.userData.vel = dir.multiplyScalar(7.5);
+  shot.userData.life = 2.2;
+  shot.userData.owner = 'human';
+  shot.userData.damage = 1;
+  scene.add(shot);
+  shots.push(shot);
+}
+
+function fire() {
+  if (gameOver || pilotDead) return;
+  if (!pilotMode && (dead || armsDisabled)) return;
+  const now = performance.now();
+  const cooldown = pilotMode ? 180 : 155;
+  if (now - lastShot < cooldown) return;
+  lastShot = now;
+  createShot();
+  status.textContent = pilotMode ? `TIRO DO PILOTO (1 DMG · MIRA ${aimDeg}°)` : `DISPARANDO (MIRA ${aimDeg}°)`;
+}
+
+function setFacing(v) {
+  facing = v;
+  if (player && !player.userData.abandoned && !player.userData.dead) {
+    player.scale.set(1.02, 1.02, 1.02);
+  }
+}
+
+function applyAim(v) {
+  aimDeg = Math.max(-75, Math.min(75, Math.round(v)));
+}
+
+function getSmokeIntensity(currentHp) {
+  if (currentHp >= 85) return 0;
+  if (currentHp > 35) return 0.1 + ((85 - currentHp) / 50) * 0.65;
+  return 0.85 + ((35 - currentHp) / 35) * 0.15;
+}
+
+function launchShoulderExplosionAndArms(mechRoot, sideSign = 1) {
+  SFX.armBreak();
+  const joints = mechRoot.userData.joints || {};
+  ['BRACO_DIR', 'BRACO_ESQ'].forEach((keyName, idx) => {
+    const armPivot = joints[keyName];
+    if (!armPivot || !armPivot.visible) return;
+    mechRoot.updateMatrixWorld(true);
+    const shoulderWorld = new THREE.Vector3();
+    armPivot.getWorldPosition(shoulderWorld);
+
+    for (let i = 0; i < 7; i++) {
+      const sp = new THREE.Mesh(
+        new THREE.BoxGeometry(0.055, 0.055, 0.055),
+        new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0xffb703 : 0xffe066 })
+      );
+      sp.position.copy(shoulderWorld);
+      sp.userData.life = 0.3 + Math.random() * 0.25;
+      sp.userData.vel = new THREE.Vector3((Math.random() - 0.5) * 6.5, 1.5 + Math.random() * 4.2, (Math.random() - 0.5) * 5.0);
+      scene.add(sp);
+      sparks.push(sp);
+    }
+
+    const flyingArm = armPivot.clone();
+    flyingArm.traverse((o) => { if (o.isMesh && o.material) o.material = o.material.clone(); });
+    flyingArm.position.copy(shoulderWorld);
+    flyingArm.quaternion.identity();
+    flyingArm.scale.copy(armPivot.getWorldScale(new THREE.Vector3()));
+
+    const dir = (idx === 0 ? 1 : -1) * sideSign;
+    flyingArm.userData.life = 6.0;
+    flyingArm.userData.vel = new THREE.Vector3(dir * (2.6 + Math.random() * 1.8), 1.6 + Math.random() * 1.5, (Math.random() - 0.5) * 2.4);
+    flyingArm.userData.spin = dir * (6 + Math.random() * 6);
+    scene.add(flyingArm);
+    debris.push(flyingArm);
+
+    armPivot.visible = false;
+  });
+}
+
+function applyVisualDamageToMech(mechRoot, currentHp, maxHp = 100) {
+  const ratio = 1 - Math.max(0, currentHp) / Math.max(1, maxHp);
+  mechRoot.traverse((o) => {
+    if (o.isMesh && o.material?.color) {
+      o.userData.baseColor ??= o.material.color.clone();
+      o.material.color.copy(o.userData.baseColor).lerp(new THREE.Color(0x090b10), ratio * 0.85);
+      o.material.roughness = Math.min(0.88, 0.35 + ratio * 0.5);
+    }
+  });
+}
+
+function explodeMechEntity(mechRoot, label = 'ROBÔ EXPLODIU!') {
+  if (!mechRoot || mechRoot.userData.dead) return;
+  SFX.explosion();
+  mechRoot.userData.dead = true;
+  mechRoot.userData.armsDisabled = true;
+  mechRoot.visible = false;
+  status.textContent = label;
+
+  const center = new THREE.Vector3();
+  mechRoot.getWorldPosition(center);
+  center.y += 1.4;
+
+  killHumansInBlastRadius(center, 3.6, 'ROBÔ EXPLODIU');
+
+  for (let i = 0; i < 18; i++) {
+    const sp = new THREE.Mesh(
+      new THREE.BoxGeometry(0.065, 0.065, 0.065),
+      new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0xf59e0b : 0xffe066 })
+    );
+    sp.position.copy(center);
+    sp.userData.life = 0.45 + Math.random() * 0.35;
+    sp.userData.vel = new THREE.Vector3((Math.random() - .5) * 9.5, 2.5 + Math.random() * 7.5, (Math.random() - .5) * 6.5);
+    scene.add(sp);
+    sparks.push(sp);
+  }
+
+  for (let i = 0; i < 12; i++) {
+    const sm = new THREE.Mesh(
+      new THREE.SphereGeometry(0.15 + Math.random() * 0.16, 7, 6),
+      new THREE.MeshBasicMaterial({ color: 0x090b10, transparent: true, opacity: 0.82 })
+    );
+    sm.position.copy(center).add(new THREE.Vector3((Math.random() - .5) * .6, (Math.random() - .5) * .6, (Math.random() - .5) * .4));
+    sm.userData.life = 1.2 + Math.random() * 0.8;
+    sm.userData.vel = new THREE.Vector3((Math.random() - .5) * 2.4, 1.4 + Math.random() * 2.5, (Math.random() - .5) * 1.6);
+    scene.add(sm);
+    smoke.push(sm);
+  }
+
+  let count = 0;
+  mechRoot.traverse((o) => {
+    if (!o.isMesh || count > 30) return;
+    count++;
+    const piece = o.clone();
+    piece.material = o.material.clone();
+    o.getWorldPosition(piece.position);
+    o.getWorldQuaternion(piece.quaternion);
+    piece.scale.copy(o.getWorldScale(new THREE.Vector3())).multiplyScalar(.72);
+    piece.userData.life = 5.0;
+    piece.userData.vel = new THREE.Vector3((Math.random() - .5) * 9.0, 3.2 + Math.random() * 6.8, (Math.random() - .5) * 5.0);
+    piece.userData.spin = (Math.random() - .5) * 16;
+    scene.add(piece);
+    debris.push(piece);
+  });
+}
+
+function damageDerelictMech(mechRoot, amount, sourceLabel = 'DANO') {
+  if (!mechRoot || mechRoot.userData.dead || !mechRoot.visible) return;
+  mechRoot.userData.hp = Math.max(0, (mechRoot.userData.hp ?? 100) - amount);
+  if (mechRoot === player) hp = mechRoot.userData.hp;
+  applyVisualDamageToMech(mechRoot, mechRoot.userData.hp, mechRoot.userData.maxHp ?? 100);
+
+  if (mechRoot.userData.hp <= 15 && !mechRoot.userData.armsDisabled) {
+    mechRoot.userData.armsDisabled = true;
+    launchShoulderExplosionAndArms(mechRoot, 1);
+  }
+
+  if (mechRoot.userData.hp <= 0) {
+    explodeMechEntity(mechRoot, `${sourceLabel} · ROBÔ EXPLODIU!`);
+    if (mechRoot === player) {
+      dead = true;
+      if (!pilotMode) defeat('Seu mech foi destruído.');
+    }
+  } else {
+    status.textContent = `${sourceLabel} · ROBÔ ${Math.round(mechRoot.userData.hp)}% HP`;
+  }
+}
+
+function damagePilot(amount, reason = 'ATINGIDO') {
+  if (pilotDead || !pilotMode) return;
+  pilotHp = Math.max(0, pilotHp - amount);
+  status.textContent = `PILOTO (${reason}) · HP ${pilotHp}/10`;
+  if (pilotHp <= 0) {
+    pilotDead = true;
+    if (pilotMesh) pilotMesh.visible = false;
+    spawnRedMassAt(pilotPos.x, pilotPos.y);
+    spawnImpactSparks(pilotPos.clone().add(new THREE.Vector3(0, 0.2, 0)), 0xf87171, 10);
+    defeat(`O piloto foi abatido (${reason}).`);
+  }
+}
+
+function damageHumanoid(unit, amount, reason = 'ATINGIDO') {
+  if (!unit || unit.userData.dead) return;
+  unit.userData.hp = Math.max(0, unit.userData.hp - amount);
+  const roleNames = { ai_pilot: 'PILOTO IA', scientist: 'CIENTISTA', soldier: 'SOLDADO', human: 'HUMANO' };
+  const labelRole = roleNames[unit.userData.role] || 'HUMANO';
+  if (unit.userData.hp <= 0) {
+    unit.userData.dead = true;
+    unit.visible = false;
+    spawnRedMassAt(unit.position.x, unit.position.y);
+    spawnImpactSparks(unit.position.clone().add(new THREE.Vector3(0, 0.2, 0)), 0xf87171, 8);
+    status.textContent = `${labelRole} MORTO (${reason})`;
+  } else {
+    status.textContent = `${labelRole} · ${unit.userData.hp}/10 HP`;
+  }
+}
+
+function checkRobotCrushHumans(activeRobotsList) {
+  for (const mech of activeRobotsList) {
+    if (!mech || !mech.visible || mech.userData.dead || mech.userData.abandoned) continue;
+    const mx = mech.position.x;
+    const my = mech.position.y;
+
+    for (const unit of humans) {
+      if (!unit || unit.userData.dead || !unit.visible) continue;
+      const dx = Math.abs(unit.position.x - mx);
+      const dy = Math.abs(unit.position.y - my);
+      if (dx < 0.68 && dy < 0.55) {
+        damageHumanoid(unit, 10, 'ATROPELADO');
+      }
+    }
+
+    if (pilotMode && !pilotDead) {
+      const dx = Math.abs(pilotPos.x - mx);
+      const dy = Math.abs(pilotPos.y - my);
+      if (dx < 0.68 && dy < 0.55) {
+        damagePilot(10, 'ATROPELADO POR ROBÔ ATIVO');
+      }
+    }
+  }
+}
+
+function setArmorDamage(amount) {
+  if (pilotMode) {
+    damagePilot(amount, 'TIRO DE ROBÔ');
+    return;
+  }
+  hp = Math.max(0, hp - amount);
+  if (player) {
+    player.userData.hp = hp;
+    applyVisualDamageToMech(player, hp, 100);
+  }
+  status.textContent = `DANO · HP ${Math.round(hp)}%`;
+  if (hp <= 15 && !armsDisabled) dropArms();
+  if (hp <= 0 && !dead) destroyMech();
+}
+
+function spawnSmokeAt(worldPos, currentHp) {
+  const intensity = getSmokeIntensity(currentHp);
+  if (intensity <= 0) return;
+
+  const isBlackSmoke = currentHp <= 35;
+  const grayLevel = isBlackSmoke ? 12 : Math.round((1 - Math.min(1, intensity * 1.15)) * 155);
+  const hex = (grayLevel << 16) | (grayLevel << 8) | grayLevel;
+  const radius = isBlackSmoke ? 0.11 + Math.random() * 0.09 : 0.045 + intensity * 0.065;
+  const opacity = isBlackSmoke ? 0.68 : 0.18 + intensity * 0.42;
+
+  const p = new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 7, 6),
+    new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity })
+  );
+  p.position.set(
+    worldPos.x + (Math.random() - .5) * .45,
+    worldPos.y + 1.5 + Math.random() * 1.25,
+    worldPos.z + (Math.random() - .5) * .3
+  );
+  p.userData.life = 0.85 + intensity * 0.95;
+  p.userData.vel = new THREE.Vector3((Math.random() - .5) * .35, 0.45 + intensity * 0.75 + Math.random() * .35, (Math.random() - .5) * .2);
+  scene.add(p);
+  smoke.push(p);
+}
+
+function spawnShoulderSparks(mechRoot) {
+  const joints = mechRoot.userData.joints || {};
+  const shoulders = [joints.BRACO_DIR, joints.BRACO_ESQ].filter(Boolean);
+  if (shoulders.length === 0) return;
+  mechRoot.updateMatrixWorld(true);
+  for (let s = 0; s < 3; s++) {
+    const sh = shoulders[Math.floor(Math.random() * shoulders.length)];
+    const pos = new THREE.Vector3();
+    sh.getWorldPosition(pos);
+    const spark = new THREE.Mesh(
+      new THREE.BoxGeometry(0.035, 0.035, 0.035),
+      new THREE.MeshBasicMaterial({ color: Math.random() > 0.35 ? 0xffb703 : 0xfff3b0 })
+    );
+    spark.position.copy(pos).add(new THREE.Vector3((Math.random() - .5) * .16, (Math.random() - .5) * .16, (Math.random() - .5) * .16));
+    spark.userData.life = 0.25 + Math.random() * 0.25;
+    spark.userData.vel = new THREE.Vector3((Math.random() - .5) * 4.5, 1.5 + Math.random() * 3.5, (Math.random() - .5) * 3.5);
+    scene.add(spark);
+    sparks.push(spark);
+  }
+}
+
+function dropEnemyArms(enemy) {
+  if (enemy.userData.armsDisabled) return;
+  enemy.userData.armsDisabled = true;
+  launchShoulderExplosionAndArms(enemy, enemy.userData.facing || 1);
+  status.textContent = 'INIMIGO PERDEU OS BRAÇOS · FAÍSCAS NOS OMBROS';
+}
+
+function damageEnemy(enemy, amount) {
+  if (enemy.userData.dead) return;
+  enemy.userData.hp = Math.max(0, enemy.userData.hp - amount);
+  applyVisualDamageToMech(enemy, enemy.userData.hp, enemy.userData.maxHp);
+
+  if (enemy.userData.hp <= 15 && !enemy.userData.armsDisabled) {
+    dropEnemyArms(enemy);
+  } else if (enemy.userData.hp > 0) {
+    status.textContent = `INIMIGO ATINGIDO · ${Math.round(enemy.userData.hp)}% HP`;
+  }
+
+  if (enemy.userData.hp <= 0) {
+    explodeMechEntity(enemy, 'INIMIGO EXPLODIU!');
+  }
+}
+
+function spawnSmoke() {
+  if (!player || dead || player.userData.dead || hp >= 85) return;
+  spawnSmokeAt(player.position, hp);
+}
+
+function dropArms() {
+  armsDisabled = true;
+  if (player) player.userData.armsDisabled = true;
+  launchShoulderExplosionAndArms(player, facing);
+  status.textContent = 'BRAÇOS VOARAM · FAÍSCAS NOS OMBROS';
+}
+
+function damage() {
+  if (pilotMode && !pilotDead) {
+    damagePilot(5, 'DANO MANUAL');
+  } else if (!dead) {
+    setArmorDamage(18);
+  }
+}
+
+function destroyMech() {
+  dead = true;
+  armsDisabled = true;
+  if (player) {
+    player.userData.dead = true;
+    player.userData.armsDisabled = true;
+  }
+  explodeMechEntity(player, 'MECH DESTRUÍDO');
+  defeat();
+}
+
+function reset() {
+  pilotMode = false;
+  pilotHp = 10;
+  pilotDead = false;
+  gameOver = false;
+  input.fireHold = false;
+  lastShot = 0;
+  document.querySelector('#gameover').classList.remove('show');
+  if (pilotMesh) pilotMesh.visible = false;
+
+  if (player) {
+    player.visible = true;
+    player.userData.dead = false;
+    player.userData.armsDisabled = false;
+    player.userData.hp = 100;
+    player.position.set(-4, .22, 0);
+    player.userData.baseY = .22;
+    player.rotation.y = Math.PI / 2;
+    velocityX = 0;
+    velocityY = 0;
+    grounded = true;
+    setFacing(1);
+    applyAim(INITIAL_DOWN_AIM);
+    applyTeamPalette(player, 'red');
+    setMechShrunkPose(player, false);
+    const joints = player.userData.joints || {};
+    if (joints.BRACO_DIR) { joints.BRACO_DIR.visible = true; joints.BRACO_DIR.rotation.z = 0; }
+    if (joints.BRACO_ESQ) { joints.BRACO_ESQ.visible = true; joints.BRACO_ESQ.rotation.z = 0; }
+  }
+
+  derelictMechs.forEach((dm, idx) => {
+    const spots = [
+      { x: -1.5, y: .22, dir: -1 },
+      { x: 3.4, y: .22, dir: 1 },
+      { x: 8.2, y: .22, dir: -1 }
+    ];
+    const sp = spots[idx % spots.length];
+    dm.visible = true;
+    dm.userData.dead = false;
+    dm.userData.armsDisabled = false;
+    dm.userData.hp = 100;
+    dm.userData.maxHp = 100;
+    dm.position.set(sp.x, sp.y, 0);
+    dm.userData.baseY = sp.y;
+    dm.userData.velY = 0;
+    dm.userData.grounded = true;
+    dm.rotation.y = sp.dir === 1 ? Math.PI / 2 : -Math.PI / 2;
+    applyTeamPalette(dm, 'neutral');
+    setMechShrunkPose(dm, true);
+    const joints = dm.userData.joints || {};
+    if (joints.BRACO_DIR) { joints.BRACO_DIR.visible = true; joints.BRACO_DIR.rotation.z = 0; }
+    if (joints.BRACO_ESQ) { joints.BRACO_ESQ.visible = true; joints.BRACO_ESQ.rotation.z = 0; }
+  });
+
+  barrels.forEach((b, idx) => {
+    const bSpots = [-0.8, 2.6, 6.8];
+    b.visible = true;
+    b.userData.exploded = false;
+    b.userData.hp = 10;
+    b.position.set(bSpots[idx % bSpots.length], 0.22, 0);
+  });
+
+  const hSpots = [
+    { role: 'scientist', x: -0.3, dir: -1 },
+    { role: 'soldier',   x: 2.1,  dir: -1 },
+    { role: 'ai_pilot',  x: 4.4,  dir: -1 },
+    { role: 'human',     x: 6.2,  dir: 1 },
+    { role: 'soldier',   x: 8.8,  dir: -1 }
+  ];
+  humans.forEach((u, idx) => {
+    const sp = hSpots[idx % hSpots.length];
+    u.visible = true;
+    u.userData.dead = false;
+    u.userData.hp = 10;
+    u.userData.maxHp = 10;
+    u.userData.velY = 0;
+    u.position.set(sp.x, 0.22, 0);
+    u.rotation.y = sp.dir === 1 ? Math.PI / 2 : -Math.PI / 2;
+  });
+
+  hp = 100; dead = false; armsDisabled = false;
+  shots.splice(0).forEach((s) => s.removeFromParent());
+  debris.splice(0).forEach((s) => s.removeFromParent());
+  smoke.splice(0).forEach((s) => s.removeFromParent());
+  sparks.splice(0).forEach((s) => s.removeFromParent());
+  thrusterFlames.splice(0).forEach((s) => s.removeFromParent());
+  goreMasses.splice(0).forEach((s) => s.removeFromParent());
+  status.textContent = `PRONTO · MIRA ${INITIAL_DOWN_AIM}°`;
+}
+
+function bindHold(id, key) {
+  const b = document.querySelector('#' + id);
+  let activePid = null;
+  const release = (e) => {
+    if (e && e.pointerId !== undefined && activePid !== null && e.pointerId !== activePid) return;
+    activePid = null;
+    input[key] = false;
+    b.classList.remove('active');
+  };
+  b.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    activePid = e.pointerId;
+    if (b.setPointerCapture) {
+      try { b.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+    input[key] = true;
+    b.classList.add('active');
+    if (key === 'fireHold') fire();
+  });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((ev) => b.addEventListener(ev, release));
+}
+
+const joystickEl = document.querySelector('#joystick');
+const joystickKnob = document.querySelector('#joystick-knob');
+let activeJoyPointerId = null;
+
+function updateJoystickFromClientPoint(clientX, clientY) {
+  const rect = joystickEl.getBoundingClientRect();
+  const cx = rect.left + rect.width * 0.5;
+  const cy = rect.top + rect.height * 0.5;
+  const maxR = rect.width * 0.5 - 16;
+  let dx = clientX - cx;
+  let dy = clientY - cy;
+  const dist = Math.hypot(dx, dy);
+  if (dist > maxR && dist > 0) {
+    dx = (dx / dist) * maxR;
+    dy = (dy / dist) * maxR;
+  }
+  joystickKnob.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`;
+  const nx = maxR > 0 ? dx / maxR : 0;
+  const ny = maxR > 0 ? dy / maxR : 0;
+  input.left = nx < -0.22;
+  input.right = nx > 0.22;
+  input.up = ny < -0.28;
+  input.down = ny > 0.28;
+}
+
+function resetJoystick() {
+  activeJoyPointerId = null;
+  joystickKnob.style.transform = 'translate(0px, 0px)';
+  input.left = false;
+  input.right = false;
+  input.up = false;
+  input.down = false;
+}
+
+joystickEl.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  activeJoyPointerId = e.pointerId;
+  joystickEl.setPointerCapture(e.pointerId);
+  updateJoystickFromClientPoint(e.clientX, e.clientY);
+});
+
+joystickEl.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== activeJoyPointerId) return;
+  e.preventDefault();
+  updateJoystickFromClientPoint(e.clientX, e.clientY);
+});
+
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach((ev) => {
+  joystickEl.addEventListener(ev, (e) => {
+    if (e.pointerId === activeJoyPointerId) resetJoystick();
+  });
+});
+
+async function toggleFullscreenMode() {
+  try {
+    if (!document.fullscreenElement) {
+      const target = document.documentElement;
+      if (target.requestFullscreen) {
+        await target.requestFullscreen({ navigationUI: 'hide' }).catch(() => target.requestFullscreen());
+      }
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('landscape').catch(() => {});
+      }
+    } else if (document.exitFullscreen) {
+      await document.exitFullscreen();
+    }
+  } catch (_) {}
+  updateFullscreenButtonLabel();
+}
+
+function updateFullscreenButtonLabel() {
+  const isFs = !!document.fullscreenElement;
+  fsBtn.textContent = isFs ? '✕ SAIR TELA CHEIA' : '⛶ TELA CHEIA';
+  fsBtn.classList.toggle('active', isFs);
+}
+
+document.addEventListener('fullscreenchange', updateFullscreenButtonLabel);
+document.addEventListener('selectstart', (e) => e.preventDefault());
+document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+fsBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  toggleFullscreenMode();
+});
+
+bindHold('jump', 'jumpHold');
+bindHold('fire', 'fireHold');
+document.querySelector('#eject').onclick = togglePilotEjectOrEnter;
+document.querySelector('#damage').onclick = damage;
+document.querySelector('#restart').onclick = reset;
+document.querySelector('#reset').onclick = reset;
+
+addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  if (e.key === 'ArrowLeft' || k === 'a') input.left = true;
+  if (e.key === 'ArrowRight' || k === 'd') input.right = true;
+  if (e.key === 'ArrowUp' || k === 'w') input.up = true;
+  if (e.key === 'ArrowDown' || k === 's') input.down = true;
+  if (e.code === 'Space' || e.key === ' ') { e.preventDefault(); input.jumpHold = true; }
+  if (k === 'f') input.fireHold = true;
+  if (k === 'e') togglePilotEjectOrEnter();
+  if (k === 'z') damage();
+});
+
+addEventListener('keyup', (e) => {
+  const k = e.key.toLowerCase();
+  if (e.key === 'ArrowLeft' || k === 'a') input.left = false;
+  if (e.key === 'ArrowRight' || k === 'd') input.right = false;
+  if (e.key === 'ArrowUp' || k === 'w') input.up = false;
+  if (e.key === 'ArrowDown' || k === 's') input.down = false;
+  if (e.code === 'Space' || e.key === ' ') input.jumpHold = false;
+  if (k === 'f') input.fireHold = false;
+});
+
+let canvasFirePid = null;
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (e.clientY < innerHeight - 135) {
+    canvasFirePid = e.pointerId;
+    input.fireHold = true;
+    fire();
+  }
+});
+addEventListener('pointerup', (e) => {
+  if (e.pointerId === canvasFirePid) {
+    canvasFirePid = null;
+    input.fireHold = false;
+  }
+});
+addEventListener('pointercancel', (e) => {
+  if (e.pointerId === canvasFirePid) {
+    canvasFirePid = null;
+    input.fireHold = false;
+  }
+});
+addEventListener('blur', () => {
+  canvasFirePid = null;
+  input.fireHold = false;
+  resetJoystick();
+});
+
+function init() {
+  try {
+    definition = EMBEDDED_MECH_DEFINITION;
+    player = buildMechFromDefinition(THREE, definition, { name: 'MECH-002' });
+    attachJointPivots(player);
+    player.position.set(-4, .22, 0);
+    player.userData.baseY = .22;
+    player.userData.phase = 0;
+    player.userData.hp = 100;
+    player.userData.maxHp = 100;
+    player.rotation.y = Math.PI / 2;
+    setFacing(1);
+    player.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    scene.add(player);
+
+    pilotMesh = createHumanoidUnit('pilot');
+    pilotMesh.visible = false;
+    scene.add(pilotMesh);
+
+    makeDerelictMech(-1.5, .22, -1, 100);
+    makeDerelictMech(3.4, .22, 1, 100);
+    makeDerelictMech(8.2, .22, -1, 100);
+
+    makeBarrel(-0.8, .22);
+    makeBarrel(2.6, .22);
+    makeBarrel(6.8, .22);
+
+    makeHumanUnit('scientist', -0.3, .22, -1);
+    makeHumanUnit('soldier',   2.1,  .22, -1);
+    makeHumanUnit('ai_pilot',  4.4,  .22, -1);
+    makeHumanUnit('human',     6.2,  .22, 1);
+    makeHumanUnit('soldier',   8.8,  .22, -1);
+
+    makeEnemy(1.5, .22);
+    makeEnemy(5.5, 2.29);
+    makeEnemy(9.8, 3.79);
+    applyAim(INITIAL_DOWN_AIM);
+    status.textContent = `PRONTO · MIRA ${INITIAL_DOWN_AIM}°`;
+  } catch (e) {
+    console.error(e);
+    status.textContent = 'ERRO NO MECH';
+  }
+}
+
+const clock = new THREE.Clock();
+function frame() {
+  requestAnimationFrame(frame);
+  const dt = Math.min(clock.getDelta(), .05);
+  elapsed += dt;
+
+  const dirX = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+  const dirY = (input.up ? 1 : 0) - (input.down ? 1 : 0);
+
+  if (input.fireHold) {
+    fire();
+  }
+
+  if (pilotMode && pilotMesh && !pilotDead) {
+    if (dirX !== 0) {
+      pilotFacing = dirX;
+      applyAim(0);
+      pilotVel.x += dirX * 26 * dt;
+      pilotVel.x = Math.max(-3.8, Math.min(3.8, pilotVel.x));
+    } else {
+      pilotVel.x *= Math.pow(0.001, dt);
+      if (Math.abs(pilotVel.x) < 0.05) pilotVel.x = 0;
+    }
+
+    if (dirY !== 0) {
+      applyAim(aimDeg + dirY * dt * 135);
+    }
+
+    let jetpackActive = false;
+    if (input.jumpHold) {
+      if (pilotGrounded) {
+        pilotVel.y = 4.8;
+        pilotGrounded = false;
+        jetpackActive = true;
+        SFX.jump();
+      } else {
+        pilotVel.y = Math.min(3.6, pilotVel.y + 20 * dt);
+        jetpackActive = true;
+      }
+    }
+
+    const pPrevY = pilotPos.y;
+    pilotVel.y -= 13.5 * dt;
+    let pNextY = pPrevY + pilotVel.y * dt;
+    pilotGrounded = false;
+
+    if (pilotVel.y <= 0) {
+      for (const plat of platforms) {
+        if (Math.abs(pilotPos.x - plat.x) <= plat.halfW && pPrevY >= plat.topY - 0.1 && pNextY <= plat.topY) {
+          pNextY = plat.topY;
+          pilotVel.y = 0;
+          pilotGrounded = true;
+          break;
+        }
+      }
+    }
+    if (pNextY <= 0.22) {
+      pNextY = 0.22;
+      pilotVel.y = 0;
+      pilotGrounded = true;
+    }
+
+    pilotPos.x += pilotVel.x * dt;
+    pilotPos.y = pNextY;
+    pilotMesh.position.copy(pilotPos);
+
+    if (jetpackActive) {
+      spawnPilotJetpackFlame(pilotPos, pilotFacing, true);
+    }
+
+    const targetPilotYaw = pilotFacing === 1 ? Math.PI / 2 : -Math.PI / 2;
+    pilotMesh.rotation.y += (targetPilotYaw - pilotMesh.rotation.y) * Math.min(1, dt * 18);
+
+    const pilotMoving = Math.abs(pilotVel.x) > 0.2 && pilotGrounded;
+    if (pilotMoving) {
+      pilotStepClock += dt;
+      if (pilotStepClock >= 0.22) {
+        pilotStepClock = 0;
+        SFX.step();
+      }
+    }
+    animateHumanoid(pilotMesh, elapsed, pilotMoving, !pilotGrounded);
+
+    if (status.textContent.startsWith('PILOTO') || status.textContent === 'ANDANDO' || status.textContent === 'VOANDO' || status.textContent === 'NO AR') {
+      status.textContent = `PILOTO ${pilotHp}/10 HP · MIRA ${aimDeg}° ${jetpackActive ? '· JATO' : ''}`;
+    }
+
+    camera.position.x += ((pilotPos.x + pilotFacing * 1.4) - camera.position.x) * Math.min(1, dt * 6);
+    camera.position.y += (Math.max(2.3, pilotPos.y + 1.4) - camera.position.y) * Math.min(1, dt * 5);
+    camera.lookAt(camera.position.x, camera.position.y - 0.9, 0);
+  } else if (player && !dead && !player.userData.abandoned && !player.userData.dead) {
+    const maxSpeed = 4.6;
+    const accel = grounded ? 28 : 18;
+    const friction = grounded ? 22 : 6;
+    if (dirX !== 0) {
+      velocityX += dirX * accel * dt;
+      velocityX = Math.max(-maxSpeed, Math.min(maxSpeed, velocityX));
+      setFacing(dirX);
+      applyAim(0);
+    } else {
+      const decel = friction * dt;
+      if (Math.abs(velocityX) <= decel) velocityX = 0;
+      else velocityX -= Math.sign(velocityX) * decel;
+    }
+    player.position.x += velocityX * dt;
+
+    const targetYaw = facing === 1 ? Math.PI / 2 : -Math.PI / 2;
+    player.rotation.y += (targetYaw - player.rotation.y) * Math.min(1, dt * 20);
+
+    if (dirY !== 0) {
+      applyAim(aimDeg + dirY * dt * 135);
+    }
+
+    let thrustActive = false;
+    if (input.jumpHold) {
+      if (grounded) {
+        velocityY = 6.6;
+        grounded = false;
+        thrustActive = true;
+        SFX.jump();
+      } else {
+        velocityY = Math.min(5.2, velocityY + 26 * dt);
+        thrustActive = true;
+      }
+    }
+
+    const prevY = player.position.y;
+    velocityY -= 14.5 * dt;
+    let nextY = prevY + velocityY * dt;
+    grounded = false;
+
+    if (velocityY <= 0) {
+      for (const plat of platforms) {
+        if (Math.abs(player.position.x - plat.x) <= plat.halfW && prevY >= plat.topY - 0.12 && nextY <= plat.topY) {
+          nextY = plat.topY;
+          velocityY = 0;
+          grounded = true;
+          break;
+        }
+      }
+    }
+
+    if (nextY <= .22) {
+      nextY = .22;
+      velocityY = 0;
+      grounded = true;
+    }
+
+    player.position.y = nextY;
+    player.userData.baseY = nextY;
+
+    const isWalking = Math.abs(velocityX) > 0.25 && grounded;
+    const isFlying = !grounded;
+    if (isFlying) status.textContent = thrustActive ? `VOANDO · MIRA ${aimDeg}°` : `NO AR · MIRA ${aimDeg}°`;
+    else if (isWalking) status.textContent = `ANDANDO · MIRA ${aimDeg}°`;
+    else if (status.textContent === 'ANDANDO' || status.textContent === 'VOANDO' || status.textContent === 'NO AR' || status.textContent.startsWith('MIRA') || status.textContent.startsWith('PRONTO')) {
+      status.textContent = `MIRA ${aimDeg}° · HP ${Math.round(hp)}%`;
+    }
+
+    if (isWalking) {
+      stepClock += dt;
+      if (stepClock >= 0.34) {
+        stepClock = 0;
+        SFX.step();
+      }
+    } else {
+      stepClock = 0.25;
+    }
+
+    if (thrustActive) {
+      spawnThrusterFlame(player, facing);
+    }
+
+    const aimRad = aimDeg * Math.PI / 180;
+    animateRig(player, elapsed, isWalking, aimRad, isFlying, thrustActive, armsDisabled);
+
+    if (armsDisabled) {
+      smokeClock += dt;
+      if (smokeClock >= 0.08) {
+        smokeClock = 0;
+        spawnShoulderSparks(player);
+      }
+    }
+
+    const forwardLead = facing * 2.65 + velocityX * 0.25;
+    const desiredX = player.position.x + forwardLead;
+    const desiredY = Math.max(2.6, player.position.y + 1.5);
+    camera.position.x += (desiredX - camera.position.x) * Math.min(1, dt * 6.5);
+    camera.position.y += (desiredY - camera.position.y) * Math.min(1, dt * 4.5);
+    camera.lookAt(camera.position.x, camera.position.y - 0.9, 0);
+  }
+
+  const allDerelicts = [...derelictMechs, ...(player && player.userData.abandoned && !player.userData.dead ? [player] : [])];
+  allDerelicts.forEach((dm) => {
+    if (!dm || dm.userData.dead || !dm.visible) return;
+    const prevY = dm.position.y;
+    dm.userData.velY = (dm.userData.velY ?? 0) - 14.5 * dt;
+    let nextY = prevY + dm.userData.velY * dt;
+    if (dm.userData.velY <= 0) {
+      for (const plat of platforms) {
+        if (Math.abs(dm.position.x - plat.x) <= plat.halfW && prevY >= plat.topY - 0.12 && nextY <= plat.topY) {
+          nextY = plat.topY;
+          dm.userData.velY = 0;
+          break;
+        }
+      }
+    }
+    if (nextY <= 0.22) {
+      nextY = 0.22;
+      dm.userData.velY = 0;
+    }
+    dm.position.y = nextY;
+
+    const smokeIntensity = getSmokeIntensity(dm.userData.hp ?? 100);
+    if (smokeIntensity > 0) {
+      dm.userData.smokeClock = (dm.userData.smokeClock ?? 0) + dt;
+      const interval = Math.max(0.07, 0.42 - smokeIntensity * 0.34);
+      if (dm.userData.smokeClock >= interval) {
+        dm.userData.smokeClock = 0;
+        spawnSmokeAt(dm.position, dm.userData.hp);
+      }
+    }
+    if (dm.userData.armsDisabled) {
+      dm.userData.sparkClock = (dm.userData.sparkClock ?? 0) + dt;
+      if (dm.userData.sparkClock >= 0.09) {
+        dm.userData.sparkClock = 0;
+        spawnShoulderSparks(dm);
+      }
+    }
+  });
+
+  humans.forEach((unit) => {
+    if (!unit.visible || unit.userData.dead) return;
+    const role = unit.userData.role;
+    let moving = false;
+    let aiFlying = false;
+
+    const threatMech = enemies.find((e) => !e.userData.dead && e.visible && Math.abs(e.position.x - unit.position.x) < 7.5)
+      || (player && !dead && !player.userData.abandoned && !player.userData.dead && Math.abs(player.position.x - unit.position.x) < 5.5 ? player : null);
+
+    if (role === 'scientist' || role === 'human') {
+      if (threatMech) {
+        const awayDir = unit.position.x >= threatMech.position.x ? 1 : -1;
+        unit.userData.facing = awayDir;
+        unit.rotation.y = awayDir === 1 ? Math.PI / 2 : -Math.PI / 2;
+        unit.position.x += awayDir * 2.1 * dt;
+        moving = unit.userData.grounded;
+      }
+    } else if (role === 'soldier') {
+      const targetMech = enemies.find((e) => !e.userData.dead && e.visible)
+        || allDerelicts.find((d) => d && !d.userData.dead && d.visible)
+        || (player && !dead && !player.userData.abandoned ? player : null);
+      if (targetMech) {
+        const dx = targetMech.position.x - unit.position.x;
+        const dir = dx >= 0 ? 1 : -1;
+        unit.userData.facing = dir;
+        unit.rotation.y = dir === 1 ? Math.PI / 2 : -Math.PI / 2;
+        if (Math.abs(dx) > 4.5) {
+          unit.position.x += dir * 1.3 * dt;
+          moving = unit.userData.grounded;
+        }
+        unit.userData.fireClock -= dt;
+        if (unit.userData.fireClock <= 0 && Math.abs(dx) < 9.5) {
+          unit.userData.fireClock = 1.35;
+          humanFire(unit, targetMech.position);
+        }
+      }
+    } else if (role === 'ai_pilot') {
+      const freeDerelict = allDerelicts.find((d) => d && !d.userData.dead && d.visible && Math.abs(d.position.x - unit.position.x) < 4.5);
+      if (freeDerelict && Math.abs(freeDerelict.position.x - unit.position.x) < 0.75 && Math.abs(freeDerelict.position.y - unit.position.y) < 0.8) {
+        unit.userData.dead = true;
+        unit.visible = false;
+        freeDerelict.userData.abandoned = false;
+        applyTeamPalette(freeDerelict, 'blue');
+        setMechShrunkPose(freeDerelict, false);
+        freeDerelict.userData.phase = Math.random() * 6;
+        freeDerelict.userData.fireClock = 1.0;
+        enemies.push(freeDerelict);
+        const idx = derelictMechs.indexOf(freeDerelict);
+        if (idx !== -1) derelictMechs.splice(idx, 1);
+        status.textContent = 'PILOTO IA EMBARCOU · ROBÔ FICOU AZUL!';
+        return;
+      }
+
+      if (freeDerelict) {
+        const dir = freeDerelict.position.x >= unit.position.x ? 1 : -1;
+        unit.userData.facing = dir;
+        unit.rotation.y = dir === 1 ? Math.PI / 2 : -Math.PI / 2;
+        unit.position.x += dir * 2.0 * dt;
+        moving = unit.userData.grounded;
+        if (freeDerelict.position.y > unit.position.y + 0.3 && unit.userData.velY < 2.6) {
+          unit.userData.velY += 16 * dt;
+          aiFlying = true;
+        }
+      } else if (threatMech && Math.abs(threatMech.position.x - unit.position.x) < 4.2) {
+        const awayDir = unit.position.x >= threatMech.position.x ? 1 : -1;
+        unit.userData.facing = awayDir;
+        unit.rotation.y = awayDir === 1 ? Math.PI / 2 : -Math.PI / 2;
+        unit.position.x += awayDir * 2.2 * dt;
+        if (unit.position.y < 2.6 && unit.userData.velY < 3.0) {
+          unit.userData.velY += 18 * dt;
+          aiFlying = true;
+        }
+      }
+
+      if (unit.position.y > 0.35 || aiFlying) {
+        aiFlying = true;
+        unit.userData.jetClock = (unit.userData.jetClock ?? 0) + dt;
+        if (unit.userData.jetClock >= 0.06) {
+          unit.userData.jetClock = 0;
+          spawnPilotJetpackFlame(unit.position, unit.userData.facing || 1, false);
+        }
+      }
+
+      const shootTarget = (pilotMode && !pilotDead) ? pilotPos : (threatMech ? threatMech.position : null);
+      if (shootTarget) {
+        unit.userData.fireClock -= dt;
+        if (unit.userData.fireClock <= 0 && Math.abs(shootTarget.x - unit.position.x) < 8.5) {
+          unit.userData.fireClock = 1.6;
+          humanFire(unit, shootTarget);
+        }
+      }
+    }
+
+    const prevY = unit.position.y;
+    unit.userData.velY -= 13.5 * dt;
+    let nextY = prevY + unit.userData.velY * dt;
+    unit.userData.grounded = false;
+    if (unit.userData.velY <= 0) {
+      for (const plat of platforms) {
+        if (Math.abs(unit.position.x - plat.x) <= plat.halfW && prevY >= plat.topY - 0.1 && nextY <= plat.topY) {
+          nextY = plat.topY;
+          unit.userData.velY = 0;
+          unit.userData.grounded = true;
+          break;
+        }
+      }
+    }
+    if (nextY <= 0.22) {
+      nextY = 0.22;
+      unit.userData.velY = 0;
+      unit.userData.grounded = true;
+    }
+    unit.position.y = nextY;
+    animateHumanoid(unit, elapsed + (unit.userData.phase || 0), moving, aiFlying || !unit.userData.grounded);
+  });
+
+  const activePlayerMech = (player && !dead && !player.userData.abandoned && !player.userData.dead) ? player : null;
+  checkRobotCrushHumans([...(activePlayerMech ? [activePlayerMech] : []), ...enemies.filter((e) => e && !e.userData.abandoned && !e.userData.dead)]);
+
+  for (let i = shots.length - 1; i >= 0; i--) {
+    const s = shots[i];
+    const prevPos = s.position.clone();
+    s.position.addScaledVector(s.userData.vel, dt);
+    s.userData.life -= dt;
+    let hit = false;
+
+    for (const b of barrels) {
+      if (!b.userData.exploded && b.visible) {
+        const bHit = segmentHitsBarrel(prevPos, s.position, b, 0.34);
+        if (bHit) {
+          explodeBarrel(b);
+          hit = true;
+          break;
+        }
+      }
+    }
+
+    if (!hit) {
+      if (s.userData.owner === 'player') {
+        for (const unit of humans) {
+          if (!unit.userData.dead && unit.visible) {
+            const hitPoint = segmentHitsHumanoid(prevPos, s.position, unit, 0.36);
+            if (hitPoint) {
+              spawnImpactSparks(hitPoint, 0xfbbf24, 6);
+              damageHumanoid(unit, 6, 'TIRO DE ROBÔ');
+              hit = true;
+              break;
+            }
+          }
+        }
+        if (!hit && pilotMode && !pilotDead) {
+          const hitPoint = segmentHitsHumanoid(prevPos, s.position, pilotMesh, 0.34);
+          if (hitPoint) {
+            spawnImpactSparks(hitPoint, 0xfbbf24, 6);
+            damagePilot(6, 'TIRO DE ROBÔ');
+            hit = true;
+          }
+        }
+        if (!hit) {
+          for (const enemy of enemies) {
+            if (!enemy.userData.dead && enemy.visible) {
+              const hitPoint = segmentHitsRobot(prevPos, s.position, enemy, 0.92);
+              if (hitPoint) {
+                spawnImpactSparks(hitPoint, 0xfbbf24);
+                damageEnemy(enemy, s.userData.damage ?? 20);
+                hit = true;
+                break;
+              }
+            }
+          }
+        }
+        if (!hit) {
+          for (const dm of allDerelicts) {
+            if (dm && !dm.userData.dead && dm.visible) {
+              const hitPoint = segmentHitsRobot(prevPos, s.position, dm, 0.88);
+              if (hitPoint) {
+                spawnImpactSparks(hitPoint, 0xf59e0b);
+                damageDerelictMech(dm, s.userData.damage ?? 20, 'ROBÔ NEUTRO');
+                hit = true;
+                break;
+              }
+            }
+          }
+        }
+      } else if (s.userData.owner === 'pilot') {
+        for (const unit of humans) {
+          if (!unit.userData.dead && unit.visible) {
+            const hitPoint = segmentHitsHumanoid(prevPos, s.position, unit, 0.34);
+            if (hitPoint) {
+              spawnImpactSparks(hitPoint, 0x38bdf8, 5);
+              damageHumanoid(unit, 1, 'HUMANO VS HUMANO');
+              hit = true;
+              break;
+            }
+          }
+        }
+        if (!hit) {
+          for (const m of [...enemies, ...allDerelicts]) {
+            if (m && !m.userData.dead && m.visible) {
+              const hitPoint = segmentHitsRobot(prevPos, s.position, m, 0.88);
+              if (hitPoint) {
+                spawnImpactSparks(hitPoint, 0x94a3b8, 3);
+                status.textContent = 'PILOTO SEM DANO EFETIVO CONTRA ROBÔS';
+                hit = true;
+                break;
+              }
+            }
+          }
+        }
+      } else if (s.userData.owner === 'human') {
+        if (pilotMode && !pilotDead) {
+          const hitPoint = segmentHitsHumanoid(prevPos, s.position, pilotMesh, 0.32);
+          if (hitPoint) {
+            spawnImpactSparks(hitPoint, 0xf87171, 5);
+            damagePilot(1, 'TIRO HUMANO');
+            hit = true;
+          }
+        }
+        if (!hit) {
+          for (const unit of humans) {
+            if (!unit.userData.dead && unit.visible && unit.userData.role !== 'soldier' && unit.userData.role !== 'ai_pilot') {
+              const hitPoint = segmentHitsHumanoid(prevPos, s.position, unit, 0.32);
+              if (hitPoint) {
+                spawnImpactSparks(hitPoint, 0xf87171, 5);
+                damageHumanoid(unit, 1, 'HUMANO VS HUMANO');
+                hit = true;
+                break;
+              }
+            }
+          }
+        }
+        if (!hit) {
+          for (const m of [...enemies, ...allDerelicts]) {
+            if (m && !m.userData.dead && m.visible) {
+              const hitPoint = segmentHitsRobot(prevPos, s.position, m, 0.88);
+              if (hitPoint) {
+                spawnImpactSparks(hitPoint, 0x94a3b8, 2);
+                hit = true;
+                break;
+              }
+            }
+          }
+        }
+      } else if (s.userData.owner === 'enemy') {
+        for (const unit of humans) {
+          if (!unit.userData.dead && unit.visible) {
+            const hitPoint = segmentHitsHumanoid(prevPos, s.position, unit, 0.36);
+            if (hitPoint) {
+              spawnImpactSparks(hitPoint, 0xf87171, 6);
+              damageHumanoid(unit, 6, 'TIRO DE ROBÔ');
+              hit = true;
+              break;
+            }
+          }
+        }
+        if (!hit && pilotMode && !pilotDead) {
+          const hitPoint = segmentHitsHumanoid(prevPos, s.position, pilotMesh, 0.34);
+          if (hitPoint) {
+            spawnImpactSparks(hitPoint, 0xf87171, 6);
+            damagePilot(6, 'TIRO DE ROBÔ');
+            hit = true;
+          }
+        }
+        if (!hit && player && !dead && !player.userData.abandoned && !player.userData.dead) {
+          const hitPoint = segmentHitsRobot(prevPos, s.position, player, 0.62);
+          if (hitPoint) {
+            spawnImpactSparks(hitPoint, 0x60a5fa);
+            setArmorDamage(s.userData.damage ?? 12);
+            hit = true;
+          }
+        }
+        if (!hit) {
+          for (const dm of allDerelicts) {
+            if (dm && !dm.userData.dead && dm.visible) {
+              const hitPoint = segmentHitsRobot(prevPos, s.position, dm, 0.88);
+              if (hitPoint) {
+                spawnImpactSparks(hitPoint, 0x60a5fa, 5);
+                damageDerelictMech(dm, Math.min(10, s.userData.damage ?? 10), 'ROBÔ RECOLHIDO');
+                hit = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (hit || s.userData.life <= 0) {
+      s.removeFromParent();
+      shots.splice(i, 1);
+    }
+  }
+
+  enemies.forEach((enemy) => {
+    if (!enemy.userData.dead && enemy.visible) {
+      enemy.userData.jumpCooldown = Math.max(0, enemy.userData.jumpCooldown - dt);
+      let enemyWalking = false;
+
+      const activeTarget = (pilotMode && !pilotDead)
+        ? { x: pilotPos.x, y: pilotPos.y }
+        : (player && !dead && !player.userData.abandoned && !player.userData.dead ? { x: player.position.x, y: player.position.y } : null);
+
+      if (activeTarget) {
+        const dx = activeTarget.x - enemy.position.x;
+        const dy = activeTarget.y - enemy.position.y;
+        const absDx = Math.abs(dx);
+        const dir = dx >= 0 ? 1 : -1;
+        enemy.userData.facing = dir;
+        const targetEnemyYaw = dir === 1 ? Math.PI / 2 : -Math.PI / 2;
+        enemy.rotation.y += (targetEnemyYaw - enemy.rotation.y) * Math.min(1, dt * 11);
+
+        if (absDx > 1.2) {
+          const moveSpeed = 2.15;
+          enemy.position.x += dir * moveSpeed * dt;
+          enemyWalking = enemy.userData.grounded;
+        }
+
+        if (enemy.userData.grounded && enemy.userData.jumpCooldown <= 0 && (dy > 0.85 || (absDx > 3.5 && Math.random() < 0.015))) {
+          enemy.userData.velY = 6.2;
+          enemy.userData.grounded = false;
+          enemy.userData.jumpCooldown = 1.6;
+        }
+      }
+
+      const ePrevY = enemy.position.y;
+      enemy.userData.velY -= 14.5 * dt;
+      let eNextY = ePrevY + enemy.userData.velY * dt;
+      enemy.userData.grounded = false;
+
+      if (enemy.userData.velY <= 0) {
+        for (const plat of platforms) {
+          if (Math.abs(enemy.position.x - plat.x) <= plat.halfW && ePrevY >= plat.topY - 0.12 && eNextY <= plat.topY) {
+            eNextY = plat.topY;
+            enemy.userData.velY = 0;
+            enemy.userData.grounded = true;
+            break;
+          }
+        }
+      }
+      if (eNextY <= .22) {
+        eNextY = .22;
+        enemy.userData.velY = 0;
+        enemy.userData.grounded = true;
+      }
+      enemy.position.y = eNextY;
+      enemy.userData.baseY = eNextY;
+
+      animateRig(enemy, elapsed, enemyWalking, 0, !enemy.userData.grounded, false, enemy.userData.armsDisabled);
+
+      const smokeIntensity = getSmokeIntensity(enemy.userData.hp);
+      if (smokeIntensity > 0) {
+        enemy.userData.smokeClock += dt;
+        const interval = Math.max(0.06, 0.42 - smokeIntensity * 0.34);
+        if (enemy.userData.smokeClock >= interval) {
+          enemy.userData.smokeClock = 0;
+          const count = enemy.userData.hp <= 35 ? 2 : 1;
+          for (let k = 0; k < count; k++) spawnSmokeAt(enemy.position, enemy.userData.hp);
+        }
+      }
+
+      if (enemy.userData.armsDisabled) {
+        enemy.userData.sparkClock += dt;
+        if (enemy.userData.sparkClock >= 0.08) {
+          enemy.userData.sparkClock = 0;
+          spawnShoulderSparks(enemy);
+        }
+      } else if (activeTarget) {
+        enemy.userData.fireClock -= dt;
+        if (enemy.userData.fireClock <= 0 && Math.abs(activeTarget.x - enemy.position.x) < 12) {
+          enemy.userData.fireClock = 1.65;
+          enemyFire(enemy);
+        }
+      }
+    }
+  });
+
+  for (let i = thrusterFlames.length - 1; i >= 0; i--) {
+    const fl = thrusterFlames[i];
+    fl.userData.life -= dt;
+    fl.position.addScaledVector(fl.userData.vel, dt);
+    fl.scale.multiplyScalar(Math.max(0.2, 1 - dt * 5));
+    fl.material.opacity = Math.max(0, fl.userData.life * 12);
+    if (fl.userData.life <= 0) {
+      fl.removeFromParent();
+      thrusterFlames.splice(i, 1);
+    }
+  }
+
+  smokeClock += dt;
+  const playerSmokeIntensity = pilotMode ? 0 : getSmokeIntensity(hp);
+  if (player && !dead && !pilotMode && playerSmokeIntensity > 0 && smokeClock >= Math.max(0.07, 0.4 - playerSmokeIntensity * 0.32)) {
+    smokeClock = 0;
+    const count = hp <= 35 ? 2 : 1;
+    for (let i = 0; i < count; i++) spawnSmoke();
+  }
+
+  smoke.forEach((p, i) => {
+    p.userData.life -= dt;
+    p.position.addScaledVector(p.userData.vel, dt);
+    p.scale.multiplyScalar(1 + dt * .75);
+    p.material.opacity = Math.max(0, p.userData.life * .42);
+    if (p.userData.life <= 0) {
+      p.removeFromParent();
+      smoke.splice(i, 1);
+    }
+  });
+
+  sparks.forEach((sp, i) => {
+    sp.userData.life -= dt;
+    sp.userData.vel.y -= 14 * dt;
+    sp.position.addScaledVector(sp.userData.vel, dt);
+    if (sp.userData.life <= 0) {
+      sp.removeFromParent();
+      sparks.splice(i, 1);
+    }
+  });
+
+  debris.forEach((part, i) => {
+    if (part.userData.vel) {
+      part.userData.life = (part.userData.life ?? 5.0) - dt;
+      part.userData.vel.y -= 11 * dt;
+      part.position.addScaledVector(part.userData.vel, dt);
+      if (part.position.y < 0.14) {
+        part.position.y = 0.14;
+        part.userData.vel.y = Math.abs(part.userData.vel.y) * 0.35;
+        part.userData.vel.x *= 0.72;
+        part.userData.spin *= 0.75;
+      }
+      part.rotation.x += part.userData.spin * dt;
+      part.rotation.z += part.userData.spin * .7 * dt;
+      if (part.userData.life <= 0) {
+        part.removeFromParent();
+        debris.splice(i, 1);
+      }
+    }
+  });
+
+  renderer.render(scene, camera);
+}
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+init();
+frame();
+})();
+</script>
+</body>
+</html>
